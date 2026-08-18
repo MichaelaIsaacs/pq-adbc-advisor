@@ -1,0 +1,20 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Reference material (Pat's DFG2 accelerator, cloned for study only)
+reference/
+
+# Local review artifacts (screenshots, preview HTMLs)
+.review-artifacts/
+*.png
