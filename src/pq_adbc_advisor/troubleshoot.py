@@ -318,6 +318,7 @@ def diagnose_connector_call(
     is_migrating: bool,
     custom_dsn: bool,
     has_gateway: bool | None,
+    migration: str | None = None,
 ) -> Diagnosis | None:
     """Return a scan-time Diagnosis for a single connector call.
 
@@ -325,6 +326,30 @@ def diagnose_connector_call(
     fix hint before any refresh is triggered.  Returns None when the
     connection needs no action.
     """
+    # Deprecation family: the connector is going away entirely. This is
+    # a different fix than the ODBC->ADBC migration - there is no ADBC
+    # replacement and no gateway safe-fallback. Handled BEFORE the DSN
+    # check so a Hive query that happens to also use Odbc.DataSource
+    # gets deprecation guidance, not just "rewrite to Hive.Something".
+    if migration and migration.startswith("deprecation:"):
+        family = migration.split(":", 1)[1]
+        return Diagnosis(
+            issue=f"{family.title()} connector being deprecated — no ADBC replacement",
+            likely_cause=(
+                f"The {family} connector is scheduled for deprecation. Unlike the "
+                "ODBC→ADBC migration, there is no drop-in modern driver — the "
+                "connector is being retired entirely. Every query using it will "
+                "need to move to a supported alternative."
+            ),
+            suggested_actions=[
+                "Identify a supported target connector for this workload "
+                "(Databricks, Fabric SQL Endpoint, or another modern engine).",
+                "Rewrite the source step against the target connector in a copy of the dataset.",
+                "Validate row counts + refresh duration vs. baseline before cutting over production.",
+                "Coordinate the switch with your capacity plan since backing store may change.",
+            ],
+            docs=LEARN_URL,
+        )
     if custom_dsn:
         return Diagnosis(
             issue="Custom DSN-style M — needs review before ADBC flip",

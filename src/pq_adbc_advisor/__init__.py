@@ -25,6 +25,7 @@ from .discovery import scan_tenant, scan_workspace
 from .mcode import ConnectorCall, find_all_connectors, find_hits
 from .preflight import preflight_check
 from .report import ImpactedArtifact, ImpactReport, ValidationReport, ValidationResult
+from .telemetry import disable_telemetry, enable_telemetry, telemetry_status
 from .troubleshoot import Diagnosis, diagnose
 from .validation import validate_migration
 
@@ -37,6 +38,9 @@ __all__ = [
     "find_all_connectors",
     "find_hits",
     "diagnose",
+    "disable_telemetry",
+    "enable_telemetry",
+    "telemetry_status",
     "ConnectorCall",
     "Diagnosis",
     "ImpactReport",

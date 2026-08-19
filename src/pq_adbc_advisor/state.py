@@ -68,6 +68,30 @@ def load_state() -> dict[str, Any] | None:
     return None
 
 
+def is_telemetry_opted_out() -> bool:
+    """Return True when the customer has persistently opted out of telemetry."""
+    state = load_state()
+    return bool(state and state.get("telemetry_opt_out"))
+
+
+def set_telemetry_opt_out(opt_out: bool) -> bool:
+    """Persist an opt-out flag alongside first-run baseline state.
+
+    Returns True on successful write to the lakehouse.
+    """
+    existing = load_state() or {
+        "schema_version": STATE_SCHEMA_VERSION,
+        "first_run_at": _now_iso(),
+    }
+    if opt_out:
+        existing["telemetry_opt_out"] = True
+        existing["telemetry_opt_out_at"] = _now_iso()
+    else:
+        existing.pop("telemetry_opt_out", None)
+        existing.pop("telemetry_opt_out_at", None)
+    return save_state(existing)
+
+
 def save_state(state: dict[str, Any]) -> bool:
     """Persist state to the default lakehouse. Return True on success."""
     try:

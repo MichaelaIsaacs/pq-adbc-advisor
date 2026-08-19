@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
-TOOL_VERSION = "0.2.1"
+TOOL_VERSION = "0.2.2"
 
+# Migration bucket families.
+#   odbc_to_adbc  - connector is moving from an embedded ODBC driver to the ADBC path
+#   deprecation   - connector is being retired entirely, no ADBC replacement
+#   none          - not part of any current migration
 MIGRATION_ODBC_TO_ADBC = "odbc_to_adbc"
+MIGRATION_DEPRECATION = "deprecation"
 MIGRATION_NONE = "none"
 
+# Ground-truth M function catalog per David Coe review (2026-08-19).
+# The m_functions lists match the ``shared X.Y = ...`` entries in the
+# actual connector .pq source files.  Do not add functions here unless
+# they are exported by the current connector - false positives shift
+# customer risk classifications.
 IMPACTED_CONNECTORS = [
     {
         "kind": "Snowflake",
-        "m_functions": ["Snowflake.Databases", "Snowflake.Contents"],
+        "m_functions": ["Snowflake.Databases"],
         "family": "snowflake",
         "migration": f"{MIGRATION_ODBC_TO_ADBC}:snowflake",
         "notes": "Snowflake migrating from ODBC driver to ADBC. Default flip ~autumn 2026, cutover ~early 2027.",
@@ -20,7 +30,6 @@ IMPACTED_CONNECTORS = [
         "m_functions": [
             "GoogleBigQuery.Database",
             "GoogleBigQueryAad.Database",
-            "GoogleBigQueryAad.Contents",
         ],
         "family": "bigquery",
         "migration": f"{MIGRATION_ODBC_TO_ADBC}:bigquery",
@@ -28,31 +37,52 @@ IMPACTED_CONNECTORS = [
     },
     {
         "kind": "Databricks",
-        "m_functions": ["Databricks.Catalogs", "Databricks.Contents", "AzureDatabricks.Catalogs", "AzureDatabricks.Contents"],
+        "m_functions": [
+            # Databricks connector on Azure Databricks
+            "Databricks.Catalogs",
+            "Databricks.Contents",
+            "Databricks.Query",  # DirectQuery entry point
+            # DatabricksMultiCloud: Databricks on AWS / GCP (different Kind, different auth)
+            "DatabricksMultiCloud.Catalogs",
+            "DatabricksMultiCloud.Query",
+        ],
         "family": "databricks",
         "migration": f"{MIGRATION_ODBC_TO_ADBC}:databricks",
-        "notes": "Databricks (Azure + non-Azure) migrating from ODBC to ADBC.",
+        "notes": "Databricks (Azure Databricks + DatabricksMultiCloud) migrating from ODBC to ADBC. Query entries are DirectQuery-only.",
     },
     {
         "kind": "Dremio",
-        "m_functions": ["Dremio.Databases", "Dremio.Contents"],
+        "m_functions": [
+            # Self-hosted Dremio, versioned by connector SDK
+            "Dremio.Databases",
+            "Dremio.DatabasesV300",
+            "Dremio.DatabasesV370",
+            # Dremio Cloud (hosted), also versioned
+            "DremioCloud.DatabasesByServer",
+            "DremioCloud.DatabasesByServerV330",
+            "DremioCloud.DatabasesByServerV370",
+        ],
         "family": "dremio",
         "migration": f"{MIGRATION_ODBC_TO_ADBC}:dremio",
-        "notes": "Dremio migrating from ODBC (port 31010) to ADBC (port 32010). Port switch is automatic; no M edits needed.",
+        "notes": "Dremio (self-hosted + DremioCloud, multiple SDK versions) migrating from ODBC to ADBC. Port 31010 → 32010 switches automatically.",
     },
     {
         "kind": "Amazon Redshift",
-        "m_functions": ["AmazonRedshift.Database", "AmazonRedshift.Tables"],
+        "m_functions": ["AmazonRedshift.Database"],
         "family": "redshift",
         "migration": f"{MIGRATION_ODBC_TO_ADBC}:redshift",
         "notes": "Amazon Redshift migrating from ODBC to ADBC.",
     },
     {
         "kind": "Spark / HDInsight",
-        "m_functions": ["Spark.Tables", "HDInsight.Contents", "AzureHDInsightSpark.Tables"],
+        "m_functions": [
+            "Spark.Tables",         # managed Spark
+            "AzureSpark.Tables",    # HDInsight Spark (formerly AzureHDInsightSpark.*)
+            "ApacheSpark.Tables",   # on-prem Apache Spark
+        ],
         "family": "spark",
         "migration": f"{MIGRATION_ODBC_TO_ADBC}:spark",
-        "notes": "Spark / HDInsight Spark connector migrating to ADBC.",
+        "notes": "Spark family (managed Spark, HDInsight Spark, on-prem Apache Spark) migrating to ADBC.",
     },
     {
         "kind": "Impala",
@@ -60,6 +90,20 @@ IMPACTED_CONNECTORS = [
         "family": "impala",
         "migration": f"{MIGRATION_ODBC_TO_ADBC}:impala",
         "notes": "Impala connector migrating from ODBC to ADBC.",
+    },
+    # Hive is a DEPRECATION, not a migration.  There is no ADBC replacement;
+    # the connector is being retired.  Risk logic in mcode.py treats
+    # `deprecation:*` buckets differently than `odbc_to_adbc:*` because a
+    # gateway is not a safe fallback here.
+    {
+        "kind": "Hive LLAP",
+        "m_functions": [
+            "AzureHiveLLAP.Database",
+            "ApacheHiveLLAP.Database",
+        ],
+        "family": "hive",
+        "migration": f"{MIGRATION_DEPRECATION}:hive",
+        "notes": "Hive LLAP is being deprecated; there is no ADBC replacement. Plan migration to Databricks or Fabric SQL Endpoint before end-of-life.",
     },
 ]
 

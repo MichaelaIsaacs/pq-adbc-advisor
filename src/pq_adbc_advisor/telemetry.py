@@ -99,9 +99,111 @@ def _resolve_connection() -> tuple[str, str] | None:
 def _telemetry_enabled(explicit: bool) -> bool:
     if not explicit:
         return False
+    # Environment variable opt-out (works for CI / local dev but not always
+    # discoverable from a Fabric notebook - see set_telemetry_opt_out below
+    # for the persistent notebook-friendly path).
     if os.environ.get("PQ_ADBC_ADVISOR_TELEMETRY", "").lower() in ("off", "0", "false"):
         return False
+    # Persistent opt-out written to the lakehouse state file. Survives
+    # kernel restarts and is set via the disable_telemetry() Python API.
+    if _state.is_telemetry_opted_out():
+        return False
     return _resolve_connection() is not None
+
+
+# --------------------------------------------------------------------------- #
+# Public opt-out / opt-in API (persistent across kernel sessions)
+# --------------------------------------------------------------------------- #
+# Env vars are unreliable in Fabric notebooks (David Coe review 2026-08-19).
+# These functions write the opt-out flag to the same lakehouse state file
+# that carries the first-run baseline, so the choice survives kernel restarts.
+
+def disable_telemetry() -> bool:
+    """Persistently disable anonymous telemetry for this workspace.
+
+    Writes an opt-out flag to /lakehouse/default/Files/pq_adbc_advisor_state.json
+    that survives kernel restarts. Prefer this over environment variables in
+    Fabric notebooks.
+
+    Returns True when the opt-out was successfully persisted, False when we
+    couldn't reach the state file (e.g. no default lakehouse attached, in
+    which case the opt-out is still honored for the current process).
+    """
+    saved = _state.set_telemetry_opt_out(True)
+    if saved:
+        print("[pq-adbc-advisor] Anonymous telemetry disabled for this workspace.")
+        print("[pq-adbc-advisor] Run enable_telemetry() to re-enable.")
+    else:
+        print("[pq-adbc-advisor] Telemetry opt-out set for this session.")
+        print("[pq-adbc-advisor] (Could not persist to lakehouse - the opt-out")
+        print("[pq-adbc-advisor]  applies to this kernel session only.)")
+    return saved
+
+
+def enable_telemetry() -> bool:
+    """Re-enable anonymous telemetry after a previous disable_telemetry() call.
+
+    Returns True when the opt-in was persisted successfully.
+    """
+    saved = _state.set_telemetry_opt_out(False)
+    if saved:
+        print("[pq-adbc-advisor] Anonymous telemetry re-enabled.")
+    return saved
+
+
+def telemetry_status() -> dict[str, Any]:
+    """Return a dict describing the current telemetry configuration.
+
+    Useful for the customer to check what the tool is doing before they
+    trust the opt-out choice.
+    """
+    resolved = _resolve_connection()
+    return {
+        "endpoint_configured": resolved is not None,
+        "resource": "appi-fabric-migration-scanner" if resolved else None,
+        "env_var_off": os.environ.get("PQ_ADBC_ADVISOR_TELEMETRY", "").lower() in ("off", "0", "false"),
+        "persistent_opt_out": _state.is_telemetry_opted_out(),
+        "effectively_enabled": _telemetry_enabled(True),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# First-run stdout notice
+# --------------------------------------------------------------------------- #
+
+_FIRST_RUN_NOTICE = (
+    "\n" + "─" * 68 + "\n"
+    "  pq-adbc-advisor — anonymous telemetry\n"
+    + "─" * 68 + "\n"
+    "  This tool sends anonymous counts (per-connector, per-risk) to the\n"
+    "  Power Query PM team so we can measure adoption and prioritize\n"
+    "  building these diagnostics into the product itself.\n"
+    "\n"
+    "  Never sent: M code, item/workspace names, endpoint URLs, credentials,\n"
+    "  refresh error message bodies, gateway names, or dataset IDs.\n"
+    "  Tenant ID is SHA-256 hashed by default (12 hex chars).\n"
+    "\n"
+    "  To disable at any time (persists across kernel restarts):\n"
+    "    from pq_adbc_advisor import disable_telemetry\n"
+    "    disable_telemetry()\n"
+    "\n"
+    "  Details + Kusto queries the PM team runs:\n"
+    "    https://github.com/MichaelaIsaacs/pq-adbc-advisor#telemetry\n"
+    + "─" * 68 + "\n"
+)
+
+
+def _maybe_print_first_run_notice(is_first_run: bool) -> None:
+    """Print the notice once per (workspace × process) on first-run only."""
+    if not is_first_run:
+        return
+    if getattr(_maybe_print_first_run_notice, "_printed", False):
+        return
+    _maybe_print_first_run_notice._printed = True  # type: ignore[attr-defined]
+    try:
+        print(_FIRST_RUN_NOTICE)
+    except Exception:
+        pass
 
 
 def _send_raw_tenant() -> bool:
@@ -194,6 +296,12 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
 
     run_id = uuid.uuid4().hex
     combined = _state.compute_run_state(current, run_id)
+
+    # Notify the customer on their FIRST scan of a given workspace.
+    # This is our privacy-notification hook (David Coe review): before the
+    # first event lands upstream the customer sees what's being collected
+    # and how to opt out.
+    _maybe_print_first_run_notice(bool(combined.get("is_first_run", False)))
 
     tenant_id = _tenant_id()
     workspace_id = report.workspace_id or ""

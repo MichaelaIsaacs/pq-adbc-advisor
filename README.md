@@ -192,12 +192,39 @@ counters.
 
 ### Opting out
 
+The first time you run the tool in a workspace you'll see a one-time notice
+in the notebook output describing what's collected. To opt out at any time
+(the choice persists across kernel restarts):
+
 ```python
-baseline = scan_workspace(telemetry_enabled=False)
+from pq_adbc_advisor import disable_telemetry
+disable_telemetry()
+```
+
+To re-enable later:
+
+```python
+from pq_adbc_advisor import enable_telemetry
+enable_telemetry()
+```
+
+To check the current state:
+
+```python
+from pq_adbc_advisor import telemetry_status
+telemetry_status()
+# -> {'endpoint_configured': True, 'resource': 'appi-fabric-migration-scanner',
+#     'env_var_off': False, 'persistent_opt_out': False, 'effectively_enabled': True}
+```
+
+Two additional opt-out paths are supported for CI and non-notebook contexts:
+
+```python
+baseline = scan_workspace(telemetry_enabled=False)  # per-call
 ```
 
 ```bash
-export PQ_ADBC_ADVISOR_TELEMETRY=off
+export PQ_ADBC_ADVISOR_TELEMETRY=off                # env var
 ```
 
 ### Anonymizing tenant/workspace IDs

@@ -3,6 +3,54 @@
 All notable changes to `pq-adbc-advisor` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.2] - 2026-08-19
+
+Addressed David Coe's PR review (9 comments on the initial preview).
+
+### Fixed connector catalog
+Replaced the M-function list with the ground-truth catalog from the current
+connector .pq source files:
+- **Snowflake:** removed non-existent `Snowflake.Contents`
+- **BigQuery AAD:** removed non-existent `GoogleBigQueryAad.Contents`
+- **Databricks:** replaced invented `AzureDatabricks.*` variants with the real
+  `Databricks.Query` (DirectQuery entry point) and `DatabricksMultiCloud.Catalogs`
+  / `DatabricksMultiCloud.Query`
+- **Dremio:** added versioned variants (`Dremio.DatabasesV300`,
+  `Dremio.DatabasesV370`, `DremioCloud.DatabasesByServer` + `V330` + `V370`)
+  that appear in customer M when their PBIX was built against older SDK versions
+- **Amazon Redshift:** removed non-existent `AmazonRedshift.Tables`
+- **Spark / HDInsight:** replaced obsolete `HDInsight.Contents` and
+  `AzureHDInsightSpark.Tables` with the current `AzureSpark.Tables` and
+  `ApacheSpark.Tables`
+
+### Added Hive deprecation as a new migration family
+Hive LLAP is being deprecated (Cameron / David confirmed in the spec meeting +
+PR review). Since there is no ADBC replacement, this is semantically different
+from the ODBC → ADBC migration:
+- New `MIGRATION_DEPRECATION` bucket family (`deprecation:hive`)
+- New `ConnectorCall.risk()` branch: any use of a deprecating connector = medium
+  risk (needs a real migration plan); any pinned use = high risk (already brittle,
+  no gateway safe-fallback)
+- New `diagnose_connector_call` branch that steers customers toward a supported
+  target connector rather than a driver switch
+
+### Telemetry consent
+Replaced the environment-variable-only opt-out (unreliable in Fabric notebooks)
+with a persistent Python API and an explicit customer notification:
+- **New:** `pq_adbc_advisor.disable_telemetry()` / `enable_telemetry()` /
+  `telemetry_status()` — persist opt-out to the workspace's lakehouse state
+  file so the choice survives kernel restarts
+- **New:** First-run stdout notice printed the very first time a customer runs
+  the tool in a workspace, explaining what's collected, what's never sent, and
+  how to opt out
+- **New:** HTML report footer now says "Anonymous telemetry on — `disable_telemetry()` to opt out"
+- Existing env var (`PQ_ADBC_ADVISOR_TELEMETRY=off`) and kwarg (`telemetry_enabled=False`)
+  paths preserved for CI / non-notebook contexts
+
+### Tests
+- 12 new regression tests covering: connector list corrections, Hive deprecation
+  risk logic, persistent opt-out, first-run notice, and deprecation diagnosis
+
 ## [0.2.1] - 2026-08-18
 
 Telemetry designed for measuring tool impact.

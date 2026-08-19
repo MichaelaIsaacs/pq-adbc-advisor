@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from .constants import (
+    MIGRATION_DEPRECATION,
     MIGRATION_NONE,
     RISK_HIGH,
     RISK_LOW,
@@ -223,8 +224,27 @@ class ConnectorCall:
         return self.migration != MIGRATION_NONE
 
     def risk(self, has_gateway: bool | None) -> str:
+        """Compute risk for this hit given gateway presence.
+
+        Migration-family semantics:
+
+        * ``deprecation:*`` — no ADBC replacement. Any use = medium risk
+          (needs a real migration plan). Any pinned = high risk (already
+          brittle, no gateway safe-fallback).
+        * ``odbc_to_adbc:*`` — ADBC replacement exists. Risk depends on
+          pinning + gateway.
+        * ``none`` — not migrating; custom DSN is still medium risk
+          because ADBC changes the shape ODBC-shaped M code depends on.
+        """
+        # Non-migrating connectors
         if not self.is_migrating:
             return RISK_MEDIUM if self.custom_dsn else RISK_NA
+
+        # Deprecation: the connector is going away entirely
+        if self.migration.startswith(f"{MIGRATION_DEPRECATION}:"):
+            return RISK_HIGH if self.is_pinned_odbc else RISK_MEDIUM
+
+        # ODBC -> ADBC migration
         if self.is_pinned_adbc:
             return RISK_LOW
         if self.is_pinned_odbc:
