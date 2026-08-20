@@ -27,20 +27,21 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from . import definitions, fabric_api, sempy_path, telemetry
+from . import definitions, fabric_api, pipeline_scan, sempy_path, telemetry
 from .constants import DEFAULT_MAX_PARALLEL
 from .mcode import ConnectorCall, find_all_connectors
 from .report import ImpactReport, ImpactedArtifact
 
 
-# Item types we currently know how to inspect for M expressions.
-_INSPECTABLE_TYPES = {"SemanticModel", "Dataset", "Dataflow"}
+# Item types we currently know how to inspect.
+# SemanticModel / Dataset / Dataflow -> M expression scan.
+# DataPipeline -> connection reference scan (no M code).
+_INSPECTABLE_TYPES = {"SemanticModel", "Dataset", "Dataflow", "DataPipeline"}
 
 # Item types the user is likely to have but that we do NOT yet parse
 # for connector calls. Surfaced as "not inspected" in the report so
 # customers know a clean scan is not a full-coverage guarantee.
 _KNOWN_UNINSPECTED_TYPES = {
-    "DataPipeline",       # tracked in a follow-up
     "Notebook",           # M can be inline but rare
     "KQLQueryset",
     "Lakehouse",
@@ -69,19 +70,48 @@ def _fetch_definition_and_scan(
     item: dict,
     use_sempy: bool,
 ) -> dict | None:
-    """Fetch one item's definition and run the M scan on it.
+    """Fetch one item's definition and run the connector scan on it.
 
     Runs in a worker thread. Returns a dict with keys:
-        {item, calls, skip_reason, source}
-    where skip_reason is None on success and a string on skip, and
-    source records how the definition was obtained ("sempy" or "rest").
+        {item, calls, skip_reason, source, pipeline_refs}
+    where skip_reason is None on success and a string on skip, source
+    records how the definition was obtained ("sempy" or "rest"), and
+    pipeline_refs (list | None) is populated only for DataPipeline
+    items — those are resolved into ConnectorCalls in the main phase
+    once Fabric Connections have been fetched.
     """
     item_type = item.get("type", "")
     item_id = item.get("id", "")
     item_name = item.get("displayName", "")
 
     if item_type not in _INSPECTABLE_TYPES:
-        return {"item": item, "calls": [], "skip_reason": "type_not_inspected", "source": None}
+        return {
+            "item": item, "calls": [], "skip_reason": "type_not_inspected",
+            "source": None, "pipeline_refs": None,
+        }
+
+    # Data Pipeline: definition contains no M — it references connections
+    # by ID. Return the raw refs; the caller resolves them after the
+    # Fabric Connections listing lands.
+    if item_type == "DataPipeline":
+        definition = fabric_api.get_item_definition(
+            workspace_id, item_id, access_token, item_type=item_type
+        )
+        if definition is None:
+            return {
+                "item": item, "calls": [], "skip_reason": "definition_unavailable",
+                "source": None, "pipeline_refs": None,
+            }
+        refs = pipeline_scan.extract_connection_refs(definition)
+        if not refs:
+            return {
+                "item": item, "calls": [], "skip_reason": "definition_parsed_but_no_expressions",
+                "source": "rest", "pipeline_refs": None,
+            }
+        return {
+            "item": item, "calls": [], "skip_reason": None,
+            "source": "rest", "pipeline_refs": refs,
+        }
 
     expressions: list[dict] = []
     source = "rest"
@@ -101,21 +131,28 @@ def _fetch_definition_and_scan(
             workspace_id, item_id, access_token, item_type=item_type
         )
         if definition is None:
-            return {"item": item, "calls": [], "skip_reason": "definition_unavailable", "source": None}
+            return {
+                "item": item, "calls": [], "skip_reason": "definition_unavailable",
+                "source": None, "pipeline_refs": None,
+            }
         expressions = definitions.extract_m_expressions(definition, item_type)
         source = "rest"
 
     if not expressions:
         return {
             "item": item, "calls": [],
-            "skip_reason": "definition_parsed_but_no_expressions", "source": source,
+            "skip_reason": "definition_parsed_but_no_expressions",
+            "source": source, "pipeline_refs": None,
         }
 
     calls: list[ConnectorCall] = []
     for e in expressions:
         calls.extend(find_all_connectors(e["expression"]))
 
-    return {"item": item, "calls": calls, "skip_reason": None, "source": source}
+    return {
+        "item": item, "calls": calls, "skip_reason": None,
+        "source": source, "pipeline_refs": None,
+    }
 
 
 def scan_workspace(
@@ -204,14 +241,28 @@ def scan_workspace(
                     item.get("type", ""), reason=f"error: {type(e).__name__}",
                 )
 
-    _log_progress(f"scans complete in {time.time() - started:.0f}s. Filtering + fetching gateways...", verbose)
+    _log_progress(f"scans complete in {time.time() - started:.0f}s. Loading Fabric Connections + resolving...", verbose)
 
     # Track how many items came from sempy vs REST for telemetry.
     report.sempy_hits = sum(1 for r in scan_results if r.get("source") == "sempy")
 
+    # Load Fabric Connections FIRST (v0.3.0). We need the connection ID
+    # -> connector kind mapping to resolve DataPipeline references before
+    # we can turn them into ConnectorCalls.
+    connections_by_id: dict[str, dict] = {}
+    if include_fabric_connections:
+        connections, err = fabric_api.list_fabric_connections(access_token)
+        report.fabric_connections = connections
+        report.fabric_connections_error = err
+        for c in connections or []:
+            cid = c.get("id")
+            if cid:
+                connections_by_id[cid] = c
+
     # Phase 2: apply the include_non_migrating filter, collect artifacts
-    # that still need a gateway lookup
+    # that still need a gateway lookup, and resolve pipeline references.
     needs_gateway: list[tuple[dict, list[ConnectorCall]]] = []
+    pipeline_calls_count = 0
     for res in scan_results:
         item = res["item"]
         item_id = item.get("id", "")
@@ -222,7 +273,16 @@ def scan_workspace(
             report.record_skipped(item_id, item_name, item_type, reason=res["skip_reason"])
             continue
 
-        calls = res["calls"]
+        # DataPipeline: resolve refs against Fabric Connections now that
+        # we have the ID -> kind mapping.
+        if res.get("pipeline_refs"):
+            calls = pipeline_scan.refs_to_connector_calls(
+                res["pipeline_refs"], connections_by_id,
+            )
+            pipeline_calls_count += len(calls)
+        else:
+            calls = res["calls"]
+
         if not calls:
             report.record_skipped(item_id, item_name, item_type, reason="no_external_connectors")
             continue
@@ -247,6 +307,8 @@ def scan_workspace(
                     item_type=item_type, has_gateway=None, hits=calls,
                 )
             )
+
+    report.pipeline_calls = pipeline_calls_count
 
     # Phase 3: parallel gateway lookups
     if needs_gateway:
@@ -279,12 +341,6 @@ def scan_workspace(
                         has_gateway=has_gateway, hits=calls,
                     )
                 )
-
-    if include_fabric_connections:
-        _log_progress("listing Fabric shared connections...", verbose)
-        connections, err = fabric_api.list_fabric_connections(access_token)
-        report.fabric_connections = connections
-        report.fabric_connections_error = err
 
     duration = time.time() - started
     _log_progress(

@@ -540,6 +540,8 @@ class ImpactReport:
     used_sempy_path: bool = False
     sempy_hits: int = 0
     show_non_migrating: bool = False
+    # New in v0.3.0: DataPipeline coverage.
+    pipeline_calls: int = 0
 
     def add(self, artifact: ImpactedArtifact) -> None:
         self.artifacts.append(artifact)
@@ -566,11 +568,11 @@ class ImpactReport:
         in 3 seconds, but that does not mean the customer is safe.
         """
         # Item types the scanner CAN parse for M expressions today.
-        inspected_types = {"SemanticModel", "Dataset", "Dataflow"}
+        inspected_types = {"SemanticModel", "Dataset", "Dataflow", "DataPipeline"}
         # Types we know exist but do not yet parse. Anything else observed
         # is bucketed as "other" so telemetry surfaces surprises.
         known_uninspected = {
-            "DataPipeline", "Notebook", "KQLQueryset", "Lakehouse", "Warehouse",
+            "Notebook", "KQLQueryset", "Lakehouse", "Warehouse",
             "MirroredDatabase", "Report", "PaginatedReport", "MLModel",
             "MLExperiment", "Environment", "SparkJobDefinition",
         }
@@ -775,15 +777,29 @@ class ImpactReport:
             any_migrating = any(row[1].is_migrating for row in rows)
             return (0 if any_migrating else 1, -len(rows), kind)
 
+        # Pagination (v0.3.0): cap the rows we render per connector group
+        # so a workspace with 500+ connector calls doesn't produce a 700KB+
+        # DOM that hangs a notebook kernel. Callers who need the full list
+        # can use ``baseline.to_dataframe()``.
+        HTML_ROWS_PER_GROUP_CAP = 25
+        HTML_TOTAL_ROWS_CAP = 400  # hard ceiling across the whole report
+
+        rows_rendered_total = 0
         groups_html = []
         for kind, rows in sorted(groups.items(), key=_sort_key):
             ok = warn = fail = na = 0
             conn_htmls = []
+            capped_from = len(rows)
             for artifact, call, status_kind, diag in rows:
                 if status_kind == "fail": fail += 1
                 elif status_kind == "warn": warn += 1
                 elif status_kind == "ok":   ok += 1
                 elif status_kind == "none": na += 1
+
+            # Second pass just to render the (possibly truncated) row list.
+            for artifact, call, status_kind, diag in rows[:HTML_ROWS_PER_GROUP_CAP]:
+                if rows_rendered_total >= HTML_TOTAL_ROWS_CAP:
+                    break
 
                 # Title = endpoint if we have one, else the m_function
                 if call.endpoint_hint:
@@ -817,8 +833,26 @@ class ImpactReport:
                     artifact_line=artifact_line,
                     diagnosis=diag,
                 ))
+                rows_rendered_total += 1
+
+            if capped_from > len(conn_htmls):
+                remaining = capped_from - len(conn_htmls)
+                conn_htmls.append(
+                    '<div class="pqa-section-desc" style="padding:6px 12px;color:#8a8886;">'
+                    f'…and {remaining} more in this group. Use '
+                    '<code>baseline.to_dataframe()</code> for the complete list.'
+                    '</div>'
+                )
 
             groups_html.append(_render_connector_group(kind, conn_htmls, ok, warn, fail, na))
+            if rows_rendered_total >= HTML_TOTAL_ROWS_CAP:
+                groups_html.append(
+                    '<div class="pqa-section-desc" style="color:#a4571e;">'
+                    f'Rendered {HTML_TOTAL_ROWS_CAP} of many rows. '
+                    'The remaining rows are available via <code>baseline.to_dataframe()</code>.'
+                    '</div>'
+                )
+                break
 
         if not groups_html:
             groups_html = ['<div class="pqa-section-desc">No external connector calls found in this workspace.</div>']

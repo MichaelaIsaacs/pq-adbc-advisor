@@ -173,3 +173,63 @@ of this scan" section at the bottom.
 * KQL Queryset scanning.
 * Fabric Warehouse T-SQL parsing.
 * Any write path beyond `trigger_refresh` in `validation.py`.
+
+## ADRs (v0.3.0)
+
+### ADR-007: Data Pipeline inspection via JSON activity walk, not M
+
+**Context.** Fabric Data Pipelines are the ADF descendant. Their
+definitions are JSON, not M. Nothing in the M parser is useful here.
+
+**Decision.** Add a separate `pipeline_scan.py` that walks
+`properties.activities` recursively (including `ForEach`,
+`IfCondition`, `Until`, `Switch` containers) and emits raw
+`ConnectionRef` records. Resolve those refs against the Fabric
+Connections listing to derive connector kind, then convert to
+`ConnectorCall` so the existing report/risk/troubleshoot pipeline
+works unchanged.
+
+**Consequences.**
+* Discovery ordering changes — Fabric Connections must be fetched
+  BEFORE the artifact filter phase, since pipeline refs need the ID
+  → kind mapping to resolve.
+* Unresolvable connection IDs (permissions blocked, cross-workspace)
+  render as `Unresolved connection` — a coverage gap the customer
+  can see, not a silent green light.
+* Gateway status is unknowable for pipeline refs without an extra
+  API call per connection; `has_gateway=None` until we add that.
+
+### ADR-008: Service Principal auth via MSAL, optional install
+
+**Context.** `notebookutils.credentials.getToken` is delegated-user
+only. A customer running a scheduled scan (or CI test against a lab
+workspace) has no way to authenticate.
+
+**Decision.** New `auth.py` module. Detects
+`PQ_ADBC_ADVISOR_SP_*` env vars; when present, uses MSAL's
+`ConfidentialClientApplication` with either a client secret or a PEM
+certificate. `msal` and `cryptography` are optional pip extras
+(`pip install pq-adbc-advisor[sp]`) so notebook users don't pay for
+them.
+
+**Consequences.**
+* Auth precedence is now three levels: explicit kwarg > SP env > notebook.
+* Documented in README and SECURITY.md. The SP still needs the same
+  Fabric permissions the delegated user would.
+
+### ADR-009: HTML pagination via row caps, not lazy loading
+
+**Context.** A workspace with 500 connector calls used to render a
+700KB+ DOM. That's still tolerable in a Fabric notebook but not
+paginated, and there was no ceiling — a pathological workspace could
+have hung the kernel.
+
+**Decision.** Hard cap: 25 rows per connector group, 400 rows total.
+Beyond either cap, an inline note points the customer at
+`baseline.to_dataframe()` for the complete list. No lazy loading /
+JavaScript — the report has to render statically since it's a
+`_repr_html_` snapshot.
+
+**Consequences.** Stress test confirms 500 calls render in <1s under
+500KB. Customers who want the full inventory drop to the DataFrame
+view. That's the same tradeoff a spreadsheet takes.

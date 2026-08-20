@@ -99,16 +99,34 @@ _PBI_API = "https://api.powerbi.com/v1.0/myorg"
 def get_token() -> str:
     """Return a Power BI access token.
 
-    Prefers the Fabric notebook helper when available; falls back to raising
-    a clear error otherwise so the caller can supply a token explicitly.
+    Precedence (v0.3.0):
+      1. Service Principal via ``auth.acquire_token_service_principal``
+         when the SP env vars are set.
+      2. Delegated notebook user via ``notebookutils.credentials.getToken``.
+      3. RuntimeError with clear guidance so the caller supplies a
+         token explicitly.
     """
+    # 1. Service principal fast path.
+    try:
+        from . import auth
+        if auth.service_principal_env_set():
+            return auth.acquire_token_service_principal()
+    except Exception:
+        # If SP is misconfigured we fall through to the notebook path
+        # rather than silently pretend we have no token.
+        pass
+
+    # 2. Delegated notebook user.
     try:
         import notebookutils  # type: ignore
         return notebookutils.credentials.getToken("pbi")
     except Exception as e:
         raise RuntimeError(
-            "Could not acquire a Power BI token via notebookutils. "
-            "Pass access_token= explicitly when calling scan_workspace / scan_tenant."
+            "Could not acquire a Power BI token. Options:\n"
+            "  * Pass access_token= explicitly to scan_workspace/scan_tenant.\n"
+            "  * Set the service-principal env vars: "
+            "PQ_ADBC_ADVISOR_SP_TENANT_ID / _SP_CLIENT_ID / _SP_CLIENT_SECRET.\n"
+            "  * Run inside a Fabric notebook (notebookutils.credentials.getToken)."
         ) from e
 
 

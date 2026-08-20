@@ -3,6 +3,77 @@
 All notable changes to `pq-adbc-advisor` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-08-20
+
+Coverage + auth expansion. Ships the four remaining T1 items from the
+architectural review, plus the main-branch merge that had been pending.
+
+### Data Pipeline connector inspection
+
+Fabric Data Pipelines (ADF-descendant orchestrator) are now inspected.
+`pipeline_scan.py` parses `properties.activities` from the pipeline
+definition — including nested `ForEach`, `IfCondition`, `Until`, and
+`Switch` activity containers — and pulls every `externalReferences.connection`,
+`connectionReference.connectionId`, and legacy inline `linkedService`
+type out of the JSON.
+
+Extracted connection IDs are resolved against the workspace's Fabric
+Connections listing to derive connector kind, so a pipeline that copies
+from a Snowflake connection now shows up in the impact report exactly
+like a semantic model does. Unresolvable connection IDs (permissions
+blocked, cross-workspace, etc.) render as `Unresolved connection` so
+the customer sees the coverage gap rather than a false all-clear.
+
+Discovery ordering changed: Fabric Connections are now fetched
+*before* the artifact filter/gateway phase because pipeline refs need
+the ID → kind mapping to resolve.
+
+### Service Principal auth
+
+New `auth.py` module. When `PQ_ADBC_ADVISOR_SP_TENANT_ID` +
+`PQ_ADBC_ADVISOR_SP_CLIENT_ID` + `PQ_ADBC_ADVISOR_SP_CLIENT_SECRET`
+(or `PQ_ADBC_ADVISOR_SP_CERT_PATH`) are set, `get_token()` acquires a
+Power BI access token via MSAL's `ConfidentialClientApplication`
+instead of the delegated notebook path. Enables scheduled scans and
+CI use without an interactive user.
+
+`msal` and `cryptography` are optional install extras
+(`pip install pq-adbc-advisor[sp]`) so notebook users are not forced
+to pull them in.
+
+Auth precedence (top wins):
+1. Explicit `access_token=` kwarg
+2. Service Principal env vars via `auth.acquire_token_service_principal`
+3. Delegated user via `notebookutils.credentials.getToken`
+
+### HTML pagination
+
+The report now caps rendering at 25 rows per connector group and 400
+rows total. Beyond the cap, an inline note points the caller at
+`baseline.to_dataframe()` for the complete list. This bounds the DOM
+size on huge workspaces (500 connector calls now render in <1s in
+<500KB HTML, tested).
+
+### Housekeeping
+- **Merged into `main`.** All prior v0.2.x work lived on the
+  `v0.2.1-initial-review` branch; `pip install` of the default branch
+  used to return a stub. Fixed.
+- Added `Bearer` display-redaction note to `CONTRIBUTING.md`.
+- Tagged v0.2.1, v0.2.2, v0.2.3, v0.2.4, v0.3.0 as GitHub releases.
+
+### Tests
+- 20 new tests in `test_v030_features.py`:
+  - Pipeline parsing: copy activity (source + sink), lookup, script,
+    nested ForEach/If, legacy inline linkedService, refs → ConnectorCall
+    with and without connection resolution, end-to-end via discovery.
+  - Sempy: mock `sempy.fabric` package proves the fast path runs
+    end-to-end without falling back to REST; sempy_hits recorded.
+  - SP auth: env detection (secret + cert paths), acquire via mock
+    MSAL, ImportError when msal missing, MSAL error surface, get_token
+    routing to SP.
+  - HTML pagination: per-group cap, total cap, 500-call render < 1s.
+- Total: **146 tests**, all passing (110 + 16 v0.2.4 + 20 v0.3.0).
+
 ## [0.2.4] - 2026-08-20
 
 Architectural rethink after David Coe's real-world 23-minute scan.

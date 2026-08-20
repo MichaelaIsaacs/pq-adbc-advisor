@@ -136,19 +136,21 @@ def test_skipped_by_reason_groups_and_counts():
 
 def test_coverage_score_reflects_inspected_types():
     r = report_mod.ImpactReport(workspace_id="ws")
+    # DataPipeline is now inspected (v0.3.0). Use Report as the
+    # not-inspected type instead.
     r.observed_types = {
         "SemanticModel": 5,
         "Dataflow": 2,
-        "DataPipeline": 3,
-        "Report": 10,
+        "Report": 3,
+        "Notebook": 10,
     }
     cov = r.coverage()
     # 7 of 20 inspected = 35%
     assert cov["inspected_items"] == 7
     assert cov["total_items"] == 20
     assert cov["score_pct"] == 35
-    assert "DataPipeline" in cov["not_inspected_types"]
     assert "Report" in cov["not_inspected_types"]
+    assert "Notebook" in cov["not_inspected_types"]
     assert "SemanticModel" in cov["inspected_types"]
 
 
@@ -166,9 +168,10 @@ def test_coverage_score_100_when_only_inspected_types_present():
 
 def test_html_render_includes_coverage_kpi_and_skipped_breakdown():
     r = report_mod.ImpactReport(workspace_id="ws-abc")
-    r.observed_types = {"SemanticModel": 4, "DataPipeline": 6}
-    r.record_skipped("1", "A", "DataPipeline", reason="type_not_inspected")
-    r.record_skipped("2", "B", "DataPipeline", reason="type_not_inspected")
+    # 4 inspected + 6 not inspected (Reports).
+    r.observed_types = {"SemanticModel": 4, "Report": 6}
+    r.record_skipped("1", "A", "Report", reason="type_not_inspected")
+    r.record_skipped("2", "B", "Report", reason="type_not_inspected")
     r.record_skipped("3", "C", "SemanticModel", reason="no_external_connectors")
     html = r._repr_html_()
     # Coverage KPI card present
@@ -179,7 +182,7 @@ def test_html_render_includes_coverage_kpi_and_skipped_breakdown():
     assert "Type not yet inspected" in html
     # Scope disclosure
     assert "Not inspected" in html
-    assert "DataPipeline" in html
+    assert "Report" in html
 
 
 def test_html_render_shows_sempy_badge_when_used():
@@ -223,10 +226,12 @@ def test_discovery_records_observed_types(monkeypatch):
     from pq_adbc_advisor import definitions
     monkeypatch.setattr(fabric_api, "get_token", lambda: "t")
     monkeypatch.setattr(fabric_api, "current_workspace_id", lambda: "ws")
+    # Use Report (not DataPipeline) as the type_not_inspected sample —
+    # DataPipeline is now inspected in v0.3.0.
     monkeypatch.setattr(fabric_api, "list_items", lambda *a, **kw: [
         {"id": "1", "displayName": "A", "type": "SemanticModel"},
-        {"id": "2", "displayName": "B", "type": "DataPipeline"},
-        {"id": "3", "displayName": "C", "type": "Report"},
+        {"id": "2", "displayName": "B", "type": "Report"},
+        {"id": "3", "displayName": "C", "type": "Notebook"},
     ])
     monkeypatch.setattr(fabric_api, "get_item_definition",
                         lambda ws, iid, tok, item_type=None: None)
@@ -241,8 +246,8 @@ def test_discovery_records_observed_types(monkeypatch):
         include_fabric_connections=False, telemetry_enabled=False,
         verbose=False,
     )
-    assert r.observed_types == {"SemanticModel": 1, "DataPipeline": 1, "Report": 1}
-    # Report / DataPipeline should show up as skipped with type_not_inspected
+    assert r.observed_types == {"SemanticModel": 1, "Report": 1, "Notebook": 1}
+    # Report and Notebook should show up as skipped with type_not_inspected
     reasons = r.skipped_by_reason()
     assert reasons.get("type_not_inspected", 0) == 2
 

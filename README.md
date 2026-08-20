@@ -110,6 +110,41 @@ model, run in parallel up to `max_parallel`.
 
 ---
 
+## What's inspected
+
+| Item type | Inspected? | How |
+|---|---|---|
+| **SemanticModel / Dataset** | ✓ | `sempy.fabric` fast path when available; REST `getDefinition` fallback |
+| **Dataflow (Gen 2)** | ✓ | REST `getDefinition`, parses `mashup.pq` |
+| **Dataflow (Gen 1)** | ✓ (best effort) | REST `getDefinition`, walks embedded strings |
+| **Data Pipeline** | ✓ (v0.3.0) | REST `getDefinition`, walks activities (incl. ForEach/If/Until/Switch), resolves `externalReferences.connection` against Fabric Connections |
+| Notebook, Report, Paginated Report, KQL Queryset, Lakehouse, Warehouse | Not yet | Surfaced in the "Scope of this scan" footer |
+
+The report's **Coverage** KPI reflects the ratio of inspected to total
+observed items so a clean scan on a workspace of only Reports is
+honestly flagged as low coverage.
+
+---
+
+## Authentication
+
+The tool acquires a Power BI / Fabric access token in this order (top wins):
+
+1. **Explicit token.** `scan_workspace(access_token="...")`.
+2. **Service Principal** (v0.3.0). Set `PQ_ADBC_ADVISOR_SP_TENANT_ID`,
+   `PQ_ADBC_ADVISOR_SP_CLIENT_ID`, and either
+   `PQ_ADBC_ADVISOR_SP_CLIENT_SECRET` or `PQ_ADBC_ADVISOR_SP_CERT_PATH`.
+   Install extras: `pip install pq-adbc-advisor[sp]`.
+3. **Delegated notebook user.** The default inside a Fabric notebook —
+   uses `notebookutils.credentials.getToken("pbi")`.
+
+The SP path is what you want for scheduled scans, CI pipelines, or any
+non-interactive context. The SP needs the same rights as a delegated
+user would (Workspace Contributor for `scan_workspace`, Fabric Admin
+for `scan_tenant`).
+
+---
+
 ## What the impact report tells you
 
 **One row per connector call** in the workspace:
