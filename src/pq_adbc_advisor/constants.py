@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-TOOL_VERSION = "0.2.2"
+TOOL_VERSION = "0.2.3"
 
 # Migration bucket families.
 #   odbc_to_adbc  - connector is moving from an embedded ODBC driver to the ADBC path
@@ -223,3 +223,15 @@ RISK_NA = "na"          # Connector is not part of any current migration
 SCANNER_CHUNK_SIZE = 100
 SCANNER_POLL_INTERVAL_SEC = 5
 SCANNER_MAX_POLLS = 60
+
+# Fabric getDefinition LRO tuning (David Coe review, 2026-08-20).
+# The Fabric API commonly returns Retry-After: 20 even when the underlying
+# operation completes in <1s. Starting with a short first sleep and backing
+# off exponentially up to the server's hint drops the p50 wait per artifact
+# from ~20s to ~1s.
+LRO_FIRST_POLL_SEC = 1
+
+# Parallelism for per-item Fabric REST calls (getDefinition, gateway lookup).
+# Fabric APIs generally tolerate ~10 in flight per identity. Higher values
+# hit rate limits.
+DEFAULT_MAX_PARALLEL = 10

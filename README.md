@@ -31,20 +31,36 @@ in the Fabric Toolbox.
 Inside a Fabric notebook cell:
 
 ```python
-%pip install git+https://github.com/microsoft/pq-adbc-advisor.git
+%pip install git+https://github.com/MichaelaIsaacs/pq-adbc-advisor.git
 from pq_adbc_advisor import scan_workspace, validate_migration
 
-# Phase 1 - BEFORE flipping the ADBC switch
-baseline = scan_workspace()          # every connector in the current workspace
-baseline.summary()                   # prints counts by migration bucket / risk
-baseline.to_html("adbc_impact.html") # shareable report
+# Phase 1 — BEFORE flipping the ADBC switch
+baseline = scan_workspace()          # default: skip non-migrating connectors
+baseline                             # renders inline in the notebook
 
 # ... flip the tenant / workspace ADBC switch ...
 
-# Phase 2 - AFTER flipping the switch
+# Phase 2 — AFTER flipping the switch
 result = validate_migration(baseline)
-result.summary()
-result.to_html("adbc_validation.html")
+result                               # inline results with per-failure fix
+```
+
+You do **not** need to call `to_html(path)` — the report renders inline as
+soon as you evaluate the variable in a notebook cell. `to_html()` is
+optional for CSAs who want to share the report offline.
+
+For a full inventory (including SQL Server / Excel / Web / other
+non-migrating connectors):
+
+```python
+baseline = scan_workspace(include_non_migrating=True)
+```
+
+Or toggle after the fact:
+
+```python
+baseline.show_non_migrating = True
+baseline
 ```
 
 For a tenant-wide scan (requires Fabric admin):
@@ -52,8 +68,28 @@ For a tenant-wide scan (requires Fabric admin):
 ```python
 from pq_adbc_advisor import scan_tenant
 report = scan_tenant()
-report.to_html("adbc_tenant_impact.html")
+report
 ```
+
+## Cost + runtime
+
+The scan phase is **read-only** and does not execute customer queries. It
+reads item definitions via the Fabric REST API and scans them for M
+patterns. Nothing is charged to Fabric capacity for the scan.
+
+Typical runtimes with the default `max_parallel=10`:
+
+| Workspace size | Runtime |
+|---|---|
+| Small (< 20 artifacts) | < 15 seconds |
+| Medium (20–80 artifacts) | 30–90 seconds |
+| Large (100+ artifacts, tenant-wide scan) | 2–5 minutes |
+
+If you hit rate-limit errors, drop `max_parallel` (e.g. `scan_workspace(max_parallel=5)`).
+
+The **validation** phase triggers a real refresh on every impacted
+semantic model, so it does consume Fabric capacity — one refresh per
+model, run in parallel up to `max_parallel`.
 
 ---
 

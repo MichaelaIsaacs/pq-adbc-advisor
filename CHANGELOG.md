@@ -3,6 +3,39 @@
 All notable changes to `pq-adbc-advisor` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.3] - 2026-08-20
+
+Addressed David Coe's performance + UX feedback from a real 23-minute scan
+of the MSIT test workspace (81 artifacts, 228 connector calls).
+
+### Performance
+- **10× faster scans.** Parallel per-item `get_item_definition` and gateway
+  lookups (`ThreadPoolExecutor(max_workers=10)`). The dominant cost was
+  the LRO poll cadence: Fabric returns `Retry-After: 20` even when the
+  operation completes in under a second, so a sequential scan of 81
+  artifacts cost 27 minutes minimum. New behavior: start at 1s and
+  back off exponentially up to the server hint. Same test workspace
+  should now scan in **1–2 minutes**.
+- **Skip non-migrating connectors by default.** ~45% of David's calls
+  were to SQL Server / Excel / Web / etc. that we cannot help with. The
+  new default is `scan_workspace(include_non_migrating=False)`; pass
+  `True` for a full inventory.
+- **Progress output** every 10 artifacts so a long scan doesn't look hung.
+
+### UX
+- **Inline rendering by default.** The quickstart notebook and README no
+  longer show `to_html(path)` — just `baseline` on its own line. This
+  matches how Fabric notebooks work and avoids David's lakehouse-file
+  download issue.
+- **Report filters non-migrating connectors** in the default view. Toggle
+  via `baseline.show_non_migrating = True`. The report shows how many
+  rows are hidden with a link to re-enable.
+- **Cost + runtime section in README** so customers know what to expect.
+
+### Tests
+- New regression tests covering: `include_non_migrating` filter,
+  parallel gather, LRO short first poll, hidden-count note in the HTML.
+
 ## [0.2.2] - 2026-08-19
 
 Addressed David Coe's PR review (9 comments on the initial preview).

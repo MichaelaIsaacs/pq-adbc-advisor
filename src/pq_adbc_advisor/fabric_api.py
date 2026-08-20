@@ -19,6 +19,8 @@ from typing import Any
 import requests
 
 from .constants import (
+    DEFAULT_MAX_PARALLEL,
+    LRO_FIRST_POLL_SEC,
     SCANNER_CHUNK_SIZE,
     SCANNER_MAX_POLLS,
     SCANNER_POLL_INTERVAL_SEC,
@@ -134,23 +136,34 @@ def get_item_definition(
 
 
 def _await_lro(initial_response: requests.Response, access_token: str) -> dict[str, Any] | None:
-    """Poll a Fabric long-running operation until it completes or times out."""
+    """Poll a Fabric long-running operation until it completes or times out.
+
+    Optimized backoff (David Coe review, 2026-08-20):
+
+    The Fabric API often returns ``Retry-After: 20`` even when the operation
+    completes in under a second. Sleeping 20s per LRO × N artifacts is the
+    dominant cost of a workspace scan (81 artifacts × 20s = 27 minutes,
+    consistent with David's 23-minute run).
+
+    We start with a short first sleep (``LRO_FIRST_POLL_SEC`` = 1s), then
+    exponentially back off up to whatever the server hints via ``Retry-After``.
+    In practice this makes fast getDefinition calls return in ~1s while still
+    respecting the server's ceiling for genuinely long-running ops.
+    """
     location = initial_response.headers.get("Location")
     if not location:
         return None
 
-    # Use the initial Retry-After only for the first sleep; each subsequent poll
-    # may return its own hint via the poll response headers.
-    next_retry = int(initial_response.headers.get("Retry-After", SCANNER_POLL_INTERVAL_SEC))
+    server_hint = int(initial_response.headers.get("Retry-After", SCANNER_POLL_INTERVAL_SEC))
+    next_sleep = LRO_FIRST_POLL_SEC
+    auth = _bearer(access_token)
 
     for _ in range(SCANNER_MAX_POLLS):
-        time.sleep(next_retry)
-        auth = _bearer(access_token)
+        time.sleep(next_sleep)
         poll = requests.get(location, headers=auth)
         if poll.status_code >= 400:
             return None
-        # Update backoff hint for next iteration
-        next_retry = int(poll.headers.get("Retry-After", SCANNER_POLL_INTERVAL_SEC))
+        server_hint = int(poll.headers.get("Retry-After", server_hint))
         data = poll.json()
         status = data.get("status")
         if status == "Succeeded":
@@ -161,6 +174,8 @@ def _await_lro(initial_response: requests.Response, access_token: str) -> dict[s
             return None
         if status in ("Failed", "Cancelled"):
             return None
+        # Exponential backoff, capped at the server's hint
+        next_sleep = min(next_sleep * 2, server_hint)
     return None
 
 
