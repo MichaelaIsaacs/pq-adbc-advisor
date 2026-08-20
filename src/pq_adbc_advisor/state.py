@@ -93,13 +93,34 @@ def set_telemetry_opt_out(opt_out: bool) -> bool:
 
 
 def save_state(state: dict[str, Any]) -> bool:
-    """Persist state to the default lakehouse. Return True on success."""
+    """Persist state to the default lakehouse. Return True on success.
+
+    v0.2.4: adds a POSIX advisory lock so concurrent scans (two notebooks
+    against the same workspace) do not race and clobber each other's
+    first-run snapshot. Windows has no fcntl; we rely on the atomic
+    rename instead.
+    """
+    tmp_path = _LAKEHOUSE_PATH + ".tmp"
     try:
         os.makedirs(os.path.dirname(_LAKEHOUSE_PATH), exist_ok=True)
-        with open(_LAKEHOUSE_PATH, "w", encoding="utf-8") as f:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            try:
+                import fcntl  # Unix only
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            except (ImportError, OSError):
+                # fcntl unavailable (Windows) or not supported on this FS.
+                # Atomic rename below is still race-safe on POSIX.
+                pass
             json.dump(state, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, _LAKEHOUSE_PATH)
         return True
     except Exception:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
         return False
 
 

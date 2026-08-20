@@ -12,6 +12,7 @@ For local runs, callers may pass an ``access_token`` explicitly.
 
 from __future__ import annotations
 
+import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
@@ -21,10 +22,75 @@ import requests
 from .constants import (
     DEFAULT_MAX_PARALLEL,
     LRO_FIRST_POLL_SEC,
+    RETRY_BACKOFF_BASE_SEC,
+    RETRY_BACKOFF_CAP_SEC,
+    RETRY_MAX_ATTEMPTS,
     SCANNER_CHUNK_SIZE,
     SCANNER_MAX_POLLS,
     SCANNER_POLL_INTERVAL_SEC,
 )
+
+
+# --------------------------------------------------------------------------- #
+# 429 / 503 retry wrapper (v0.2.4)
+# --------------------------------------------------------------------------- #
+#
+# Prior versions silently returned None on 429/503, so a single throttled
+# call could silently drop an entire artifact from the report. The wrapper
+# below honors Retry-After when present, otherwise applies exponential
+# backoff with jitter. Retries are capped to keep worst-case scan time
+# bounded even when a tenant is heavily throttled.
+
+_RETRYABLE_STATUSES = {429, 503, 504}
+
+
+def _sleep_for_retry(response: requests.Response, attempt: int) -> float:
+    """Compute the sleep duration for one retry attempt."""
+    hint = response.headers.get("Retry-After")
+    if hint:
+        try:
+            return max(0.0, float(hint))
+        except ValueError:
+            pass
+    # Exponential backoff with full jitter, capped.
+    delay = min(RETRY_BACKOFF_CAP_SEC, RETRY_BACKOFF_BASE_SEC * (2 ** attempt))
+    return random.uniform(0.0, delay)
+
+
+def _request_with_retry(
+    method: str,
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    json_body: Any = None,
+    timeout: float = 60.0,
+    max_attempts: int = RETRY_MAX_ATTEMPTS,
+) -> requests.Response | None:
+    """Issue an HTTP request with 429/503 retry + Retry-After honoring.
+
+    Returns:
+        The final Response (which may itself be a 4xx/5xx that the caller
+        should interpret), or None if we exhausted retries without ever
+        getting a response (e.g. every attempt raised a network error).
+    """
+    last_response: requests.Response | None = None
+    for attempt in range(max_attempts):
+        try:
+            resp = requests.request(
+                method, url, headers=headers, json=json_body, timeout=timeout
+            )
+        except requests.RequestException:
+            # Network error - back off and retry.
+            if attempt == max_attempts - 1:
+                return None
+            time.sleep(min(RETRY_BACKOFF_CAP_SEC, RETRY_BACKOFF_BASE_SEC * (2 ** attempt)))
+            continue
+        last_response = resp
+        if resp.status_code in _RETRYABLE_STATUSES and attempt < max_attempts - 1:
+            time.sleep(_sleep_for_retry(resp, attempt))
+            continue
+        return resp
+    return last_response
 
 _FABRIC_API = "https://api.fabric.microsoft.com/v1"
 _PBI_API = "https://api.powerbi.com/v1.0/myorg"
@@ -89,7 +155,9 @@ def list_items(workspace_id: str, access_token: str, item_type: str | None = Non
         base_url += f"?type={item_type}"
     url = base_url
     while url:
-        r = requests.get(url, headers=_auth_headers(access_token))
+        r = _request_with_retry("GET", url, headers=_auth_headers(access_token))
+        if r is None:
+            break
         r.raise_for_status()
         body = r.json()
         items.extend(body.get("value", []))
@@ -124,7 +192,9 @@ def get_item_definition(
     if item_type in ("SemanticModel", "Dataset"):
         url += "?format=TMSL"
 
-    r = requests.post(url, headers=_auth_headers(access_token))
+    r = _request_with_retry("POST", url, headers=_auth_headers(access_token))
+    if r is None:
+        return None
     if r.status_code == 400:
         # Unsupported item type or unsupported format -> treat as no-def.
         return None
@@ -160,16 +230,16 @@ def _await_lro(initial_response: requests.Response, access_token: str) -> dict[s
 
     for _ in range(SCANNER_MAX_POLLS):
         time.sleep(next_sleep)
-        poll = requests.get(location, headers=auth)
-        if poll.status_code >= 400:
+        poll = _request_with_retry("GET", location, headers=auth)
+        if poll is None or poll.status_code >= 400:
             return None
         server_hint = int(poll.headers.get("Retry-After", server_hint))
         data = poll.json()
         status = data.get("status")
         if status == "Succeeded":
             result_url = poll.headers.get("Location") or location + "/result"
-            final = requests.get(result_url, headers=auth)
-            if final.status_code < 400:
+            final = _request_with_retry("GET", result_url, headers=auth)
+            if final is not None and final.status_code < 400:
                 return final.json()
             return None
         if status in ("Failed", "Cancelled"):
@@ -189,7 +259,9 @@ def scan_workspaces_modified(access_token: str, exclude_personal: bool = True) -
         f"{_PBI_API.replace('/v1.0/myorg', '')}/v1.0/myorg/admin/workspaces/modified"
         f"?excludePersonalWorkspaces={str(exclude_personal).lower()}"
     )
-    r = requests.get(url, headers={"Authorization": f"Bearer {access_token}"})
+    r = _request_with_retry("GET", url, headers=_bearer(access_token))
+    if r is None:
+        return []
     r.raise_for_status()
     data = r.json()
     return data.get("value", data) if isinstance(data, dict) else data
@@ -202,11 +274,13 @@ def _start_scan(access_token: str, workspace_ids: list[str]) -> str:
         "?datasetExpressions=True&datasetSchema=True"
         "&datasourceDetails=True&getArtifactUsers=False&lineage=True"
     )
-    r = requests.post(
-        url,
+    r = _request_with_retry(
+        "POST", url,
         headers=_auth_headers(access_token),
-        json={"workspaces": workspace_ids},
+        json_body={"workspaces": workspace_ids},
     )
+    if r is None:
+        raise RuntimeError("Scanner API refused every retry (network or throttling).")
     r.raise_for_status()
     return r.headers["Location"]
 
@@ -214,7 +288,9 @@ def _start_scan(access_token: str, workspace_ids: list[str]) -> str:
 def _poll_scan(access_token: str, poll_url: str) -> str:
     for _ in range(SCANNER_MAX_POLLS):
         time.sleep(SCANNER_POLL_INTERVAL_SEC)
-        r = requests.get(poll_url, headers={"Authorization": f"Bearer {access_token}"})
+        r = _request_with_retry("GET", poll_url, headers=_bearer(access_token))
+        if r is None:
+            continue
         r.raise_for_status()
         if r.json().get("status") == "Succeeded":
             return poll_url.replace("/scanStatus/", "/scanResult/")
@@ -238,7 +314,9 @@ def scan_tenant_workspaces(access_token: str, workspace_ids: list[str]) -> dict[
         futures = {pool.submit(_poll_scan, access_token, url): url for url in poll_urls}
         for fut in as_completed(futures):
             result_url = fut.result()
-            r = requests.get(result_url, headers={"Authorization": f"Bearer {access_token}"})
+            r = _request_with_retry("GET", result_url, headers=_bearer(access_token))
+            if r is None:
+                continue
             r.raise_for_status()
             merged["workspaces"].extend(r.json().get("workspaces", []))
     return merged
@@ -250,8 +328,8 @@ def scan_tenant_workspaces(access_token: str, workspace_ids: list[str]) -> dict[
 
 def get_refresh_history(workspace_id: str, dataset_id: str, access_token: str, top: int = 5) -> list[dict]:
     url = f"{_PBI_API}/groups/{workspace_id}/datasets/{dataset_id}/refreshes?$top={top}"
-    r = requests.get(url, headers={"Authorization": f"Bearer {access_token}"})
-    if r.status_code >= 400:
+    r = _request_with_retry("GET", url, headers=_bearer(access_token))
+    if r is None or r.status_code >= 400:
         return []
     return r.json().get("value", [])
 
@@ -267,8 +345,8 @@ def get_dataset_gateway(workspace_id: str, dataset_id: str, access_token: str) -
           a definite "no gateway" to avoid mis-classifying risk as HIGH.
     """
     url = f"{_PBI_API}/groups/{workspace_id}/datasets/{dataset_id}/datasources"
-    r = requests.get(url, headers=_bearer(access_token))
-    if r.status_code >= 400:
+    r = _request_with_retry("GET", url, headers=_bearer(access_token))
+    if r is None or r.status_code >= 400:
         return "unknown"
     try:
         values = r.json().get("value", [])
@@ -284,12 +362,12 @@ def get_dataset_gateway(workspace_id: str, dataset_id: str, access_token: str) -
 def trigger_refresh(workspace_id: str, dataset_id: str, access_token: str) -> bool:
     """POST a refresh request. Returns True if accepted."""
     url = f"{_PBI_API}/groups/{workspace_id}/datasets/{dataset_id}/refreshes"
-    r = requests.post(
-        url,
+    r = _request_with_retry(
+        "POST", url,
         headers=_auth_headers(access_token),
-        json={"notifyOption": "NoNotification"},
+        json_body={"notifyOption": "NoNotification"},
     )
-    return r.status_code in (200, 202)
+    return r is not None and r.status_code in (200, 202)
 
 
 # --------------------------------------------------------------------------- #
@@ -310,10 +388,9 @@ def list_fabric_connections(access_token: str) -> tuple[list[dict[str, Any]], st
     connections: list[dict[str, Any]] = []
     url = f"{_FABRIC_API}/connections"
     while url:
-        try:
-            r = requests.get(url, headers=_auth_headers(access_token))
-        except requests.RequestException as e:
-            return connections, f"network: {type(e).__name__}"
+        r = _request_with_retry("GET", url, headers=_auth_headers(access_token))
+        if r is None:
+            return connections, "network: exhausted retries"
         if r.status_code >= 400:
             return connections, f"http {r.status_code}"
         try:
@@ -328,8 +405,8 @@ def list_fabric_connections(access_token: str) -> tuple[list[dict[str, Any]], st
 def list_data_pipelines(workspace_id: str, access_token: str) -> list[dict[str, Any]]:
     """List Fabric Data Pipeline items in a workspace."""
     url = f"{_FABRIC_API}/workspaces/{workspace_id}/dataPipelines"
-    r = requests.get(url, headers=_auth_headers(access_token))
-    if r.status_code >= 400:
+    r = _request_with_retry("GET", url, headers=_auth_headers(access_token))
+    if r is None or r.status_code >= 400:
         return []
     return r.json().get("value", [])
 

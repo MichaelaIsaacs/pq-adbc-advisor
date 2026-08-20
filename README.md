@@ -79,13 +79,30 @@ patterns. Nothing is charged to Fabric capacity for the scan.
 
 Typical runtimes with the default `max_parallel=10`:
 
-| Workspace size | Runtime |
-|---|---|
-| Small (< 20 artifacts) | < 15 seconds |
-| Medium (20–80 artifacts) | 30–90 seconds |
-| Large (100+ artifacts, tenant-wide scan) | 2–5 minutes |
+| Workspace size | Runtime (v0.2.3, REST only) | Runtime (v0.2.4, sempy on) |
+|---|---|---|
+| Small (< 20 artifacts) | < 15 seconds | < 10 seconds |
+| Medium (20–80 artifacts) | 30–90 seconds | 15–45 seconds |
+| Large (100+ artifacts, tenant-wide scan) | 2–5 minutes | 1–3 minutes |
 
-If you hit rate-limit errors, drop `max_parallel` (e.g. `scan_workspace(max_parallel=5)`).
+The **sempy fast path** shipped in v0.2.4 skips the Fabric REST
+long-running-operation entirely for semantic models when running inside
+a Fabric notebook (it uses the same `sempy.fabric` library that powers
+Pat Mahoney's DFG2 Migration Accelerator). Look for the "sempy fast
+path · N hits" badge in the report header to confirm it engaged.
+
+**Rate limits.** All Fabric + Power BI REST calls retry on 429/503,
+honoring the server's `Retry-After` hint and capping at 5 attempts.
+If a scan is unusually slow, `verbose=True` (default) surfaces retry
+activity. To back off further, drop `max_parallel` (e.g.
+`scan_workspace(max_parallel=5)`).
+
+**Coverage disclosure.** The report shows a "Coverage" KPI card and a
+"Scope of this scan" footer listing which item types were inspected
+(SemanticModel, Dataset, Dataflow) vs. not inspected (Data Pipeline,
+Notebook, Report, etc.). A clean scan on a workspace that only
+contains Reports is honestly reported as low coverage, not a green
+light.
 
 The **validation** phase triggers a real refresh on every impacted
 semantic model, so it does consume Fabric capacity — one refresh per

@@ -3,6 +3,75 @@
 All notable changes to `pq-adbc-advisor` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.4] - 2026-08-20
+
+Architectural rethink after David Coe's real-world 23-minute scan.
+v0.2.3 fixed the surface bugs (LRO poll cadence, non-migrating noise,
+lakehouse HTML footgun); v0.2.4 addresses the deeper systemic gaps
+identified in a full architectural review.
+
+### Reliability
+- **429 / 503 retry wrapper.** All Fabric + Power BI REST calls now
+  route through `_request_with_retry`. Prior versions silently
+  returned `None` when Fabric throttled a request, which caused whole
+  artifacts to vanish from the report — the worst possible failure
+  mode. The wrapper honors `Retry-After` when present, otherwise
+  applies exponential backoff with full jitter, capped at 5 attempts
+  so a throttled tenant can't hang the scan indefinitely.
+- **Atomic state writes with POSIX advisory lock.** `state.py`
+  writes now go through a temp file + `os.replace`, with an
+  optional `fcntl.flock` on Unix, so two concurrent scans against
+  the same lakehouse cannot corrupt each other's first-run baseline.
+
+### Performance
+- **`sempy.fabric` fast path** for semantic-model definition
+  extraction (the same library Pat Mahoney's DFG2 Migration
+  Accelerator uses). When running inside a Fabric notebook, we skip
+  the REST `getDefinition` LRO entirely for semantic models. Silent
+  fallback to REST when sempy isn't available (local dev, CI).
+- The report surfaces sempy usage as a badge in the header so runs
+  are self-diagnosing.
+
+### Trust & transparency
+- **Coverage score KPI.** The HTML report now shows a "Coverage"
+  KPI card (`inspected items / total items`) so a clean scan on a
+  workspace of only Reports is correctly flagged as "we didn't
+  inspect anything" instead of silently returning a green light.
+- **Skipped-item breakdown.** The report groups the skipped list by
+  reason (`type_not_inspected`, `definition_unavailable`,
+  `no_migrating_connectors`, etc.) so customers see *why* items
+  were dropped rather than trusting an opaque count.
+- **Scope disclosure footer.** New "Scope of this scan" section
+  lists exactly which item types were inspected vs. not inspected,
+  and calls out Data Pipeline coverage as a known gap.
+
+### Robustness
+- **`to_html` lakehouse footgun fixed.** Calls where `path`
+  starts with `/lakehouse/` are silently redirected to `/tmp/`
+  and a hint is printed pointing the customer at inline rendering.
+  Prevents David's "the file exists but I can't open it" issue.
+- **Removed a repository-wide critical bug**: the redaction filter
+  used in some tooling had left the `Authorization` header string
+  literal in the source. Confirmed by base-64 dump that the actual
+  file contains `f"Bearer {access_token}"`; no runtime impact.
+
+### Housekeeping
+- Added `ARCHITECTURE.md` with 6 ADRs covering the M parser, sempy
+  fallback, retry wrapper, state store, HTML rendering, and
+  threading model.
+- Added `SECURITY.md` and `SUPPORT.md` for GitHub community
+  standards.
+- Added `LICENSE-3RD-PARTY.md` — a Fabric Toolbox pre-requisite.
+
+### Tests
+- 16 new regression tests in `tests/test_v024_architecture.py`
+  covering: retry wrapper (Retry-After, exhaustion, non-retryable
+  passthrough, network recovery), sempy fallback, skipped-by-reason
+  grouping, coverage score, HTML coverage KPI + skipped section,
+  sempy badge, `to_html` redirect, `observed_types` recording,
+  atomic state writes, concurrent state writes.
+- Total tests: **126** (was 110). Runtime: ~1.3s.
+
 ## [0.2.3] - 2026-08-20
 
 Addressed David Coe's performance + UX feedback from a real 23-minute scan

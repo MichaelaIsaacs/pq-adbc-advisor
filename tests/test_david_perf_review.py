@@ -183,7 +183,12 @@ def test_lro_first_poll_short_regardless_of_retry_after(monkeypatch):
     call_seq = [_PollResp("Running"), _PollResp("Succeeded"), _FinalResp()]
     def _get(url, headers=None):
         return call_seq.pop(0)
+    # _await_lro now routes through _request_with_retry which calls
+    # requests.request. Patch both to support old + new call paths.
+    def _request(method, url, headers=None, json=None, timeout=None):
+        return call_seq.pop(0)
     monkeypatch.setattr(fabric_api.requests, "get", _get)
+    monkeypatch.setattr(fabric_api.requests, "request", _request)
 
     result = fabric_api._await_lro(_FakeResp(), "fake-token")
     assert result is not None

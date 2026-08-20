@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-TOOL_VERSION = "0.2.3"
+TOOL_VERSION = "0.2.4"
 
 # Migration bucket families.
 #   odbc_to_adbc  - connector is moving from an embedded ODBC driver to the ADBC path
@@ -235,3 +235,12 @@ LRO_FIRST_POLL_SEC = 1
 # Fabric APIs generally tolerate ~10 in flight per identity. Higher values
 # hit rate limits.
 DEFAULT_MAX_PARALLEL = 10
+
+# 429/503 retry wrapper tuning (v0.2.4).
+# Prior versions silently returned None on throttle, causing whole artifacts
+# to vanish from the report. We now honor Retry-After when present and apply
+# exponential backoff with full jitter otherwise. Attempts are capped so that
+# a heavily throttled tenant cannot make the scan hang indefinitely.
+RETRY_MAX_ATTEMPTS = 5
+RETRY_BACKOFF_BASE_SEC = 1.0
+RETRY_BACKOFF_CAP_SEC = 30.0

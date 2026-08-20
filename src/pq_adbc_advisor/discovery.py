@@ -1,22 +1,24 @@
 """Discovery: enumerate connector calls in a Fabric workspace.
 
 Optimized after David Coe's real-world 23-minute run on the MSIT test
-workspace (81 artifacts, 228 connector calls). Three changes drive the
-speedup:
+workspace (81 artifacts, 228 connector calls). v0.2.4 architectural
+changes on top of v0.2.3's parallelism + LRO tuning:
 
-1. **Skip non-migrating connectors by default.** ~45% of David's calls
-   were to SQL / Web / Excel / etc. that we cannot help with. The default
-   is now ``include_non_migrating=False``; pass ``True`` for a full
-   inventory.
-2. **Parallelize per-item REST calls.** ``get_item_definition`` and
-   ``get_dataset_gateway`` are I/O bound; a ``ThreadPoolExecutor`` with
-   ``DEFAULT_MAX_PARALLEL`` workers runs them concurrently.
-3. **Faster LRO first poll.** ``fabric_api._await_lro`` now starts at 1s
-   and backs off, instead of respecting the server's ``Retry-After: 20``
-   before the very first poll.
-
-Progress is printed every ``PROGRESS_EVERY`` artifacts so a long run
-does not look hung.
+1. **sempy.fabric primary path.** When running inside a Fabric notebook,
+   semantic-model M expressions come straight from ``sempy.fabric``
+   (Pat's DFG2 accelerator pattern) — no LRO polling required.
+   Falls back to REST getDefinition when sempy is unavailable.
+2. **Rate-limit resilience.** All REST calls now route through
+   ``fabric_api._request_with_retry`` which honors Retry-After and
+   applies exponential backoff on 429/503/504. Throttled tenants no
+   longer silently drop artifacts.
+3. **Skipped-item transparency.** Skipped items are grouped by reason
+   in the report so users see *why* their scan dropped N items instead
+   of trusting an opaque count.
+4. **Scope disclosure.** The report tracks which item types were
+   inspected vs skipped (e.g. Data Pipeline is not yet inspected) and
+   surfaces that as a coverage score so customers don't take a clean
+   report as a full-coverage guarantee.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from . import definitions, fabric_api, telemetry
+from . import definitions, fabric_api, sempy_path, telemetry
 from .constants import DEFAULT_MAX_PARALLEL
 from .mcode import ConnectorCall, find_all_connectors
 from .report import ImpactReport, ImpactedArtifact
@@ -33,6 +35,24 @@ from .report import ImpactReport, ImpactedArtifact
 
 # Item types we currently know how to inspect for M expressions.
 _INSPECTABLE_TYPES = {"SemanticModel", "Dataset", "Dataflow"}
+
+# Item types the user is likely to have but that we do NOT yet parse
+# for connector calls. Surfaced as "not inspected" in the report so
+# customers know a clean scan is not a full-coverage guarantee.
+_KNOWN_UNINSPECTED_TYPES = {
+    "DataPipeline",       # tracked in a follow-up
+    "Notebook",           # M can be inline but rare
+    "KQLQueryset",
+    "Lakehouse",
+    "Warehouse",
+    "MirroredDatabase",
+    "Report",
+    "PaginatedReport",
+    "MLModel",
+    "MLExperiment",
+    "Environment",
+    "SparkJobDefinition",
+}
 
 # Print a status line every N artifacts processed
 PROGRESS_EVERY = 10
@@ -47,34 +67,55 @@ def _fetch_definition_and_scan(
     workspace_id: str,
     access_token: str,
     item: dict,
+    use_sempy: bool,
 ) -> dict | None:
     """Fetch one item's definition and run the M scan on it.
 
     Runs in a worker thread. Returns a dict with keys:
-        {item, calls, skip_reason}
-    where skip_reason is None on success and a string on skip.
+        {item, calls, skip_reason, source}
+    where skip_reason is None on success and a string on skip, and
+    source records how the definition was obtained ("sempy" or "rest").
     """
     item_type = item.get("type", "")
     item_id = item.get("id", "")
+    item_name = item.get("displayName", "")
 
     if item_type not in _INSPECTABLE_TYPES:
-        return {"item": item, "calls": [], "skip_reason": "type_not_inspected"}
+        return {"item": item, "calls": [], "skip_reason": "type_not_inspected", "source": None}
 
-    definition = fabric_api.get_item_definition(
-        workspace_id, item_id, access_token, item_type=item_type
-    )
-    if definition is None:
-        return {"item": item, "calls": [], "skip_reason": "definition_unavailable"}
+    expressions: list[dict] = []
+    source = "rest"
 
-    expressions = definitions.extract_m_expressions(definition, item_type)
+    # Fast path: sempy.fabric for semantic models when available.
+    if use_sempy and item_type in ("SemanticModel", "Dataset"):
+        sempy_result = sempy_path.extract_semantic_model_expressions_via_sempy(
+            workspace_id, item_id, item_name
+        )
+        if sempy_result is not None:
+            expressions = sempy_result
+            source = "sempy"
+
+    # Fallback: REST getDefinition + payload parse.
     if not expressions:
-        return {"item": item, "calls": [], "skip_reason": "definition_parsed_but_no_expressions"}
+        definition = fabric_api.get_item_definition(
+            workspace_id, item_id, access_token, item_type=item_type
+        )
+        if definition is None:
+            return {"item": item, "calls": [], "skip_reason": "definition_unavailable", "source": None}
+        expressions = definitions.extract_m_expressions(definition, item_type)
+        source = "rest"
+
+    if not expressions:
+        return {
+            "item": item, "calls": [],
+            "skip_reason": "definition_parsed_but_no_expressions", "source": source,
+        }
 
     calls: list[ConnectorCall] = []
     for e in expressions:
         calls.extend(find_all_connectors(e["expression"]))
 
-    return {"item": item, "calls": calls, "skip_reason": None}
+    return {"item": item, "calls": calls, "skip_reason": None, "source": source}
 
 
 def scan_workspace(
@@ -85,6 +126,7 @@ def scan_workspace(
     max_parallel: int = DEFAULT_MAX_PARALLEL,
     telemetry_enabled: bool = True,
     verbose: bool = True,
+    use_sempy: bool | None = None,
 ) -> ImpactReport:
     """Scan a workspace for connector calls affected by the ADBC migration.
 
@@ -108,22 +150,41 @@ def scan_workspace(
             metrics to Application Insights.
         verbose: When True (default) print a progress line to stdout
             every 10 artifacts. Set False for quiet operation (CI).
+        use_sempy: When None (default) auto-detect sempy.fabric and use
+            it as the fast path for semantic models. Force True or
+            False to override.
     """
     started = time.time()
     workspace_id = workspace_id or fabric_api.current_workspace_id()
     access_token = access_token or fabric_api.get_token()
 
+    if use_sempy is None:
+        use_sempy = sempy_path.sempy_available()
+
     report = ImpactReport(workspace_id=workspace_id, scope="workspace")
+    report.used_sempy_path = use_sempy
+
     _log_progress(f"listing items in workspace {workspace_id}...", verbose)
     items = fabric_api.list_items(workspace_id, access_token)
-    _log_progress(f"found {len(items)} items, scanning definitions in parallel (max_parallel={max_parallel})...", verbose)
+    _log_progress(
+        f"found {len(items)} items; scanning definitions in parallel "
+        f"(max_parallel={max_parallel}, sempy={'on' if use_sempy else 'off'})...",
+        verbose,
+    )
+
+    # Record which item types we saw so the report can compute a
+    # coverage/trust score. A workspace with only Reports is not really
+    # "clean" — we just didn't inspect anything.
+    for item in items:
+        report.observed_types.setdefault(item.get("type", "Unknown"), 0)
+        report.observed_types[item.get("type", "Unknown")] += 1
 
     # Phase 1: parallel definition fetches + M scans
     completed = 0
     scan_results: list[dict] = []
     with ThreadPoolExecutor(max_workers=max_parallel) as pool:
         futures = {
-            pool.submit(_fetch_definition_and_scan, workspace_id, access_token, item): item
+            pool.submit(_fetch_definition_and_scan, workspace_id, access_token, item, use_sempy): item
             for item in items
         }
         for fut in as_completed(futures):
@@ -144,6 +205,9 @@ def scan_workspace(
                 )
 
     _log_progress(f"scans complete in {time.time() - started:.0f}s. Filtering + fetching gateways...", verbose)
+
+    # Track how many items came from sempy vs REST for telemetry.
+    report.sempy_hits = sum(1 for r in scan_results if r.get("source") == "sempy")
 
     # Phase 2: apply the include_non_migrating filter, collect artifacts
     # that still need a gateway lookup

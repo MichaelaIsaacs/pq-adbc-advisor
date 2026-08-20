@@ -535,6 +535,11 @@ class ImpactReport:
     fabric_connections: list[dict[str, Any]] = field(default_factory=list)
     fabric_connections_error: str | None = None
     skipped: list[dict[str, str]] = field(default_factory=list)
+    # New in v0.2.4: coverage + performance introspection.
+    observed_types: dict[str, int] = field(default_factory=dict)
+    used_sempy_path: bool = False
+    sempy_hits: int = 0
+    show_non_migrating: bool = False
 
     def add(self, artifact: ImpactedArtifact) -> None:
         self.artifacts.append(artifact)
@@ -543,6 +548,49 @@ class ImpactReport:
         self.skipped.append(
             {"item_id": item_id, "item_name": name, "item_type": item_type, "reason": reason}
         )
+
+    # ---- Aggregates ---------------------------------------------------- #
+
+    def skipped_by_reason(self) -> dict[str, int]:
+        """Return {reason -> count} so users see WHY items were skipped."""
+        out: dict[str, int] = {}
+        for s in self.skipped:
+            reason = s.get("reason", "unknown")
+            out[reason] = out.get(reason, 0) + 1
+        return out
+
+    def coverage(self) -> dict[str, Any]:
+        """Return coverage metadata: which item types were inspected vs not.
+
+        Sets the trust budget honestly — a workspace of only Reports scans
+        in 3 seconds, but that does not mean the customer is safe.
+        """
+        # Item types the scanner CAN parse for M expressions today.
+        inspected_types = {"SemanticModel", "Dataset", "Dataflow"}
+        # Types we know exist but do not yet parse. Anything else observed
+        # is bucketed as "other" so telemetry surfaces surprises.
+        known_uninspected = {
+            "DataPipeline", "Notebook", "KQLQueryset", "Lakehouse", "Warehouse",
+            "MirroredDatabase", "Report", "PaginatedReport", "MLModel",
+            "MLExperiment", "Environment", "SparkJobDefinition",
+        }
+        inspected = {t: n for t, n in self.observed_types.items() if t in inspected_types}
+        not_inspected = {t: n for t, n in self.observed_types.items() if t in known_uninspected}
+        other = {
+            t: n for t, n in self.observed_types.items()
+            if t not in inspected_types and t not in known_uninspected
+        }
+        total_items = sum(self.observed_types.values()) or 1
+        inspected_items = sum(inspected.values())
+        score = round(100 * inspected_items / total_items) if total_items else 100
+        return {
+            "inspected_types": inspected,
+            "not_inspected_types": not_inspected,
+            "other_types": other,
+            "total_items": sum(self.observed_types.values()),
+            "inspected_items": inspected_items,
+            "score_pct": score,
+        }
 
     # ---- Aggregates ---------------------------------------------------- #
 
@@ -626,6 +674,7 @@ class ImpactReport:
 
     def summary(self) -> dict[str, Any]:
         c = self._counts()
+        cov = self.coverage()
         result = {
             "scope": self.scope,
             "workspace_id": self.workspace_id,
@@ -639,6 +688,11 @@ class ImpactReport:
             "counts_by_connector": c["counts_by_connector"],
             "fabric_connection_count": len(self.fabric_connections),
             "skipped_count": len(self.skipped),
+            "skipped_by_reason": self.skipped_by_reason(),
+            "coverage_score_pct": cov["score_pct"],
+            "coverage_types_not_inspected": cov["not_inspected_types"],
+            "used_sempy_path": self.used_sempy_path,
+            "sempy_hits": self.sempy_hits,
             "tool_version": self.tool_version,
         }
         _pretty_print(result)
@@ -648,6 +702,7 @@ class ImpactReport:
 
     def _repr_html_(self) -> str:
         c = self._counts()
+        cov = self.coverage()
         counts_risk = c["counts_by_risk"]
         n_high = counts_risk[RISK_HIGH]
         n_medium = counts_risk[RISK_MEDIUM]
@@ -675,8 +730,12 @@ class ImpactReport:
                 "gateway-backed or DSN-shaped" if n_medium else "clean",
                 tone="medium" if n_medium else "low",
             ),
-            _kpi_card("Fabric Connections", str(len(self.fabric_connections)),
-                      "shared cloud connections", tone="neutral"),
+            _kpi_card(
+                "Coverage",
+                f"{cov['score_pct']}%",
+                f"{cov['inspected_items']}/{cov['total_items']} items inspected",
+                tone="low" if cov['score_pct'] >= 80 else "medium",
+            ),
         ]
 
         # Group connections by connector kind
@@ -810,13 +869,75 @@ class ImpactReport:
                 '</div>'
             )
 
+        # Skipped-item transparency (v0.2.4): show WHY N items dropped out
+        # so a customer never has to trust an opaque count.
+        skipped_html = ""
+        by_reason = self.skipped_by_reason()
+        if by_reason:
+            reason_labels = {
+                "type_not_inspected": "Type not yet inspected (Data Pipeline, Notebook, Report, etc.)",
+                "definition_unavailable": "Definition unavailable (permissions, or API blocked)",
+                "definition_parsed_but_no_expressions": "Item has no M expressions",
+                "no_external_connectors": "M expressions contain no external connectors",
+                "no_migrating_connectors": "No migrating connectors (filtered by default)",
+            }
+            rows = []
+            for reason, n in sorted(by_reason.items(), key=lambda kv: -kv[1]):
+                label = reason_labels.get(reason, reason.replace("_", " "))
+                rows.append(
+                    f"<tr><td style='padding:6px 10px;color:#605e5c;'>{_escape(label)}</td>"
+                    f"<td style='padding:6px 10px;text-align:right;font-weight:600;'>{n}</td></tr>"
+                )
+            skipped_html = (
+                '<div class="pqa-section-title">Skipped items</div>'
+                f'<div class="pqa-section-desc">{sum(by_reason.values())} item(s) were not scanned. '
+                'Reasons below — each is a known category, not a silent drop.</div>'
+                "<table class='pqa-table'><tbody>" + "".join(rows) + "</tbody></table>"
+            )
+
+        # Scope disclosure (v0.2.4): tell the customer which item types this
+        # scan actually inspected. A clean result on a workspace where only
+        # Reports live is not a full-coverage guarantee.
+        scope_html = ""
+        if cov["inspected_types"] or cov["not_inspected_types"] or cov["other_types"]:
+            def _list_types(d: dict[str, int]) -> str:
+                if not d:
+                    return "<i>none</i>"
+                return ", ".join(f"{_escape(t)} ({n})" for t, n in sorted(d.items()))
+            not_inspected_note = ""
+            if cov["not_inspected_types"]:
+                not_inspected_note = (
+                    "<b>Not inspected:</b> "
+                    f"{_list_types(cov['not_inspected_types'])}. "
+                    "Data Pipeline coverage is tracked in a follow-up; "
+                    "connector calls inside pipelines are not yet parsed."
+                )
+            other_note = ""
+            if cov["other_types"]:
+                other_note = f"<br><b>Other:</b> {_list_types(cov['other_types'])}."
+            scope_html = (
+                '<div class="pqa-section-title">Scope of this scan</div>'
+                f"<div class='pqa-section-desc'>"
+                f"<b>Inspected:</b> {_list_types(cov['inspected_types'])}.<br>"
+                f"{not_inspected_note}{other_note}"
+                f"</div>"
+            )
+
+        sempy_badge = ""
+        if self.used_sempy_path:
+            sempy_badge = (
+                f"<span style='margin-left:8px;padding:2px 8px;background:#e6f4ea;"
+                f"color:#137333;border-radius:10px;font-size:11px;'>"
+                f"sempy fast path · {self.sempy_hits} hits</span>"
+            )
+
         return (
             _STYLE +
             '<div class="pqa-root">'
             '<div class="pqa-banner">'
             '<div class="pqa-banner-eyebrow">Microsoft Fabric &middot; Power Query</div>'
             "<h1>Connector Upgrade Advisor</h1>"
-            f'<div class="pqa-sub">{scope_label} &middot; workspace {_escape(self.workspace_id)}</div>'
+            f'<div class="pqa-sub">{scope_label} &middot; workspace {_escape(self.workspace_id)}{sempy_badge}</div>'
             "</div>"
             f'{_PREVIEW_BANNER}'
             f'<div class="pqa-kpis">{"".join(kpis)}</div>'
@@ -830,6 +951,8 @@ class ImpactReport:
             f'{"".join(groups_html)}'
             f'{hidden_note}'
             f"{conn_html}"
+            f"{skipped_html}"
+            f"{scope_html}"
             '<div class="pqa-footer">'
             f'<span>Generated by pq-adbc-advisor {TOOL_VERSION}. Anonymous telemetry on — <code>disable_telemetry()</code> to opt out.</span>'
             '<span><a href="https://learn.microsoft.com/power-query/transition-to-adbc">Transition to ADBC (Microsoft Learn)</a></span>'
@@ -846,6 +969,28 @@ class ImpactReport:
             _pretty_print(self.summary())
 
     def to_html(self, path: str, title: str = "PQ Connector Inventory & ADBC Impact") -> str:
+        """Write the rendered report to disk and return the actual path used.
+
+        Lakehouse footgun (David Coe review, 2026-08-20):
+        Writing to ``/lakehouse/default/Files/...`` inside a Fabric notebook
+        appears to succeed but the customer often cannot open the file
+        through the Files pane. To avoid the footgun, we redirect any
+        ``/lakehouse/`` write to ``/tmp/`` and print instructions telling
+        the customer to display the report inline instead. Callers that
+        genuinely need the file in the lakehouse can pass a non-lakehouse
+        path or use ``notebookutils.fs.cp`` themselves.
+        """
+        original = path
+        if path.startswith("/lakehouse/"):
+            import os
+            base = os.path.basename(path) or "adbc_impact.html"
+            path = f"/tmp/{base}"
+            print(
+                f"[pq-adbc-advisor] Redirecting write from {original} to {path}. "
+                "Files under /lakehouse/default/Files are hard to open from the "
+                "Fabric UI. To view the report, either display it inline in the "
+                "notebook (`baseline` in a cell) or copy this file to OneDrive."
+            )
         html = (
             "<!doctype html><html><head><meta charset='utf-8'>"
             f"<title>{title}</title></head><body>"
@@ -1074,6 +1219,17 @@ class ValidationReport:
             _pretty_print(self.summary())
 
     def to_html(self, path: str, title: str = "PQ ADBC Validation Report") -> str:
+        original = path
+        if path.startswith("/lakehouse/"):
+            import os
+            base = os.path.basename(path) or "adbc_validation.html"
+            path = f"/tmp/{base}"
+            print(
+                f"[pq-adbc-advisor] Redirecting write from {original} to {path}. "
+                "Files under /lakehouse/default/Files are hard to open from the "
+                "Fabric UI. To view the report, display it inline in the "
+                "notebook (`result` in a cell)."
+            )
         html = (
             "<!doctype html><html><head><meta charset='utf-8'>"
             f"<title>{title}</title></head><body>"
