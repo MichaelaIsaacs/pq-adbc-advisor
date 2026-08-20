@@ -18,3 +18,4 @@ reference/
 # Local review artifacts (screenshots, preview HTMLs)
 .review-artifacts/
 *.png
+.venv-test/

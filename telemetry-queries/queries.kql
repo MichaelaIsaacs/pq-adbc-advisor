@@ -1,0 +1,43 @@
+// pq-adbc-advisor - quick reference queries
+// Resource: appi-fabric-migration-scanner (PQ/M/Dataflows Adhoc Testing sub)
+
+// 1. Adoption last 30d
+customEvents
+| where name == "scan_complete"
+| where timestamp > ago(30d)
+| summarize
+    total_scans = count(),
+    unique_tenants = dcount(tostring(customDimensions.tenant_hash)),
+    unique_workspaces = dcount(tostring(customDimensions.workspace_id))
+
+// 2. Improvement per workspace (first vs latest run)
+customEvents
+| where name == "scan_complete"
+| summarize arg_max(toint(customDimensions.run_count), *) by
+    tenant_hash = tostring(customDimensions.tenant_hash),
+    workspace_id = tostring(customDimensions.workspace_id)
+| project
+    tenant_hash,
+    workspace_id,
+    run_number = toint(customDimensions.run_count),
+    first_pinned = toint(customDimensions.first_pinned_odbc),
+    current_pinned = toint(customDimensions.current_pinned_odbc),
+    delta_pinned = toint(customDimensions.first_pinned_odbc) - toint(customDimensions.current_pinned_odbc)
+| where run_number >= 2
+| order by delta_pinned desc
+
+// 3. Which connector dominates?
+customEvents
+| where name == "scan_complete"
+| where timestamp > ago(30d)
+| project cd = customDimensions
+| mv-apply cd on (
+    extend keys = bag_keys(cd)
+    | mv-expand key = keys to typeof(string)
+    | where key startswith "impacts_by_connector_"
+    | extend connector = substring(key, strlen("impacts_by_connector_"))
+    | extend count = toint(cd[key])
+    | project connector, count
+)
+| summarize total_calls = sum(count) by connector
+| order by total_calls desc
