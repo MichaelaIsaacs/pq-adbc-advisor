@@ -318,3 +318,38 @@ def test_xss_in_item_name_is_escaped():
     html = r._repr_html_()
     assert '<img src=x onerror' not in html   # unescaped attack
     assert '&lt;img src=x onerror=' in html    # properly escaped
+
+
+def test_missing_ids_render_plain_text_not_broken_href():
+    """Regression: if workspace_id or item_id is missing, the artifact
+    name must render as plain text, never as an anchor to
+    /groups/None/... which would 404 in the Fabric portal."""
+    from pq_adbc_advisor.constants import fabric_portal_url
+
+    # constants: missing IDs return None
+    assert fabric_portal_url(None, "iid", "SemanticModel") is None
+    assert fabric_portal_url("wid", None, "SemanticModel") is None
+    assert fabric_portal_url("", "iid", "SemanticModel") is None
+    assert fabric_portal_url("wid", "", "SemanticModel") is None
+    # unknown type still deep-links to workspace list when workspace known
+    assert fabric_portal_url("wid", "iid", "Frob") == \
+        "https://app.fabric.microsoft.com/groups/wid/list"
+
+    # report: missing IDs → no anchor, name is plain <b>
+    r = ImpactReport(workspace_id="")  # no workspace
+    r.add(ImpactedArtifact(
+        workspace_id="", item_id="", item_name="Orphaned Model",
+        item_type="SemanticModel", has_gateway=False,
+        hits=[_mk_hit(implementation="1.0")],
+    ))
+    html = r._repr_html_()
+    # Must not emit a href with literal None or empty groups segment
+    assert "/groups/None/" not in html
+    assert "/groups//datasets" not in html
+    # Name still appears, just not as an anchor
+    assert "Orphaned Model" in html
+    # No anchor with pqa-artifact-link class wrapping this name
+    import re as _re
+    for m in _re.finditer(r'<a[^>]*class="pqa-artifact-link"[^>]*>([^<]*)</a>', html):
+        assert "Orphaned Model" not in m.group(1), \
+            "missing-ID artifact must not be wrapped in a broken href anchor"

@@ -1031,14 +1031,19 @@ class ImpactReport:
                 # target. Clicking "HighRiskModel" opens THAT semantic
                 # model in the Fabric portal so the user can edit it for
                 # migration. Only the name is a link; the type tag is
-                # not, to keep the click target unambiguous.
+                # not, to keep the click target unambiguous. If we can't
+                # build a portal URL (missing workspace_id/item_id) we
+                # render the name as plain text — no broken href.
                 _portal = artifact.fabric_portal_url()
-                _name_html = (
-                    f'<a href="{_escape(_portal)}" target="_blank" '
-                    f'rel="noopener noreferrer" class="pqa-artifact-link" '
-                    f'title="Open in Fabric to edit for migration">'
-                    f'<b>{_escape(artifact.item_name)}</b></a>'
-                )
+                if _portal:
+                    _name_html = (
+                        f'<a href="{_escape(_portal)}" target="_blank" '
+                        f'rel="noopener noreferrer" class="pqa-artifact-link" '
+                        f'title="Open in Fabric to edit for migration">'
+                        f'<b>{_escape(artifact.item_name)}</b></a>'
+                    )
+                else:
+                    _name_html = f'<b>{_escape(artifact.item_name)}</b>'
                 artifact_line = (
                     f'In: {_name_html} '
                     f'<span style="color:#a19f9d;font-size:11px;">({_escape(artifact.item_type)})</span>'
@@ -1457,14 +1462,19 @@ class ValidationReport:
 
                 # v0.3.1 (revised): hyperlink the artifact name in the
                 # validation section too, so David can jump straight to
-                # the model that failed refresh and fix it.
+                # the model that failed refresh and fix it. If we can't
+                # build a portal URL (missing workspace_id/item_id) we
+                # render the name as plain text — no broken href.
                 _portal = r.artifact.fabric_portal_url()
-                _name_html = (
-                    f'<a href="{_escape(_portal)}" target="_blank" '
-                    f'rel="noopener noreferrer" class="pqa-artifact-link" '
-                    f'title="Open in Fabric to edit for migration">'
-                    f'<b>{_escape(r.artifact.item_name)}</b></a>'
-                )
+                if _portal:
+                    _name_html = (
+                        f'<a href="{_escape(_portal)}" target="_blank" '
+                        f'rel="noopener noreferrer" class="pqa-artifact-link" '
+                        f'title="Open in Fabric to edit for migration">'
+                        f'<b>{_escape(r.artifact.item_name)}</b></a>'
+                    )
+                else:
+                    _name_html = f'<b>{_escape(r.artifact.item_name)}</b>'
                 artifact_line = (
                     f'In: {_name_html} '
                     f'<span style="color:#a19f9d;font-size:11px;">({_escape(r.artifact.item_type)})</span> &middot; '

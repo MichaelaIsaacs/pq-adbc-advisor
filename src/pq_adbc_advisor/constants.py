@@ -249,14 +249,25 @@ FABRIC_PORTAL_URL_SEGMENT = {
 FABRIC_PORTAL_BASE = "https://app.fabric.microsoft.com"
 
 
-def fabric_portal_url(workspace_id: str, item_id: str, item_type: str) -> str:
+def fabric_portal_url(workspace_id: str, item_id: str, item_type: str) -> str | None:
     """Return the Fabric portal deep-link for a workspace item.
 
-    Falls back to the workspace's item list view when the item type is
-    not one of the well-known deep-linkable segments.
+    Returns None if we cannot build a usable link:
+      - workspace_id is missing (would render /groups/None/...);
+      - item_id is missing but the type is deep-linkable (would 404).
+    When the item type is not one of the well-known deep-linkable
+    segments but workspace_id is known, we fall back to that
+    workspace's item list view.
+
+    Callers must treat None as "render the item name as plain text,
+    no anchor" so users never see a broken href.
     """
+    if not workspace_id:
+        return None
     seg = FABRIC_PORTAL_URL_SEGMENT.get(item_type)
     if seg:
+        if not item_id:
+            return None
         return f"{FABRIC_PORTAL_BASE}/groups/{workspace_id}/{seg}/{item_id}"
     return f"{FABRIC_PORTAL_BASE}/groups/{workspace_id}/list"
 
