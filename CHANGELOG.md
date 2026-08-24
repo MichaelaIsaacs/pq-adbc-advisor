@@ -26,10 +26,12 @@ Vanilla JS with a `window.__pqaFilterInit` idempotency guard and a
 bind cleanly. Empty connector groups auto-collapse after filter so the
 view doesn't flash "Snowflake" headings above nothing.
 
-### Fabric portal deep-links per row
+### Fabric portal deep-links on the artifact name
 
-Every migrating connector row now renders an `Open ↗` pill link that
-jumps to the item in the Fabric portal:
+The artifact **name itself** in the `In: <Name>` line is now the
+clickable link — clicking "HighRiskModel" opens that specific
+semantic model in the Fabric portal so you can edit it for migration.
+No separate "Open" pill (David flagged that as ambiguous).
 
 - `SemanticModel` → `.../groups/{ws}/datasets/{id}`
 - `Dataflow` → `.../groups/{ws}/dataflows/{id}`
@@ -83,7 +85,7 @@ Filtered reports preserve `fabric_connections`, `observed_types`,
   emitted exactly once.
 - Tri-state gateway chip.
 - KPI-to-filter parity regression.
-- `Open ↗` link `noopener noreferrer` regression.
+- Artifact-name link `noopener noreferrer` regression.
 - XSS regression: HTML-carrying item names must be escaped.
 - Filter API semantics (str / list / preservation / partial-hit).
 

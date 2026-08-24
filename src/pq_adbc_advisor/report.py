@@ -421,13 +421,18 @@ _STYLE = """
   }
   .pqa-connection.pqa-filtered-out { display: none; }
   .pqa-connector-group.pqa-empty { display: none; }
-  .pqa-open-link {
-    margin-left: 8px; font-size: 11px; font-weight: 600;
+  .pqa-artifact-link {
     color: #117865; text-decoration: none;
-    padding: 2px 8px; border-radius: 10px; background: #e6f4ea;
-    display: inline-block; vertical-align: middle; white-space: nowrap;
+    border-bottom: 1px dashed #117865;
   }
-  .pqa-open-link:hover { background: #ceead6; text-decoration: none; }
+  .pqa-artifact-link:hover {
+    color: #0b5749; border-bottom-style: solid;
+    text-decoration: none;
+  }
+  .pqa-artifact-link:focus-visible {
+    outline: 2px solid #0b5749; outline-offset: 2px;
+    border-radius: 2px;
+  }
 </style>
 """
 
@@ -569,24 +574,18 @@ def _render_connection_row(
         f'{_escape(status_label)}</span>'
     )
 
-    # Wrap the whole row in a <div>. A dedicated "Open in Fabric ↗" link
-    # sits inline in the meta row so clicking jumps to the artifact; we
-    # avoid wrapping the whole row in <a> because the diagnosis block
-    # contains its own <a href> (Learn more) and nested anchors are
-    # invalid HTML.
-    open_link_html = ""
-    if portal_url:
-        open_link_html = (
-            f' <a class="pqa-open-link" href="{_escape(portal_url)}" '
-            f'target="_blank" rel="noopener noreferrer" '
-            f'title="Open this item in the Fabric portal">Open &#8599;</a>'
-        )
-
+    # v0.3.1 (revised per David): the clickable target is the artifact
+    # NAME itself in the "In: <Name>" line — clicking jumps to that
+    # specific item in the Fabric portal so the user can open and edit it
+    # for migration. The link is composed by the call site into
+    # `artifact_line` so we can hyperlink just the name (not the type
+    # tag). No separate "Open" pill — David flagged that as ambiguous.
     return (
-        f'<div class="pqa-connection" data-risk-filter="{risk_filter}">'
+        f'<div class="pqa-connection" data-risk-filter="{risk_filter}"'
+        f' data-portal-url="{_escape(portal_url) if portal_url else ""}">'
         f'  <div class="pqa-connection-icon {status_kind}">{_icon(status_kind)}</div>'
         f'  <div class="pqa-connection-body">'
-        f'    <div class="pqa-connection-title">{title_html}{open_link_html}</div>'
+        f'    <div class="pqa-connection-title">{title_html}</div>'
         f'    <div class="pqa-connection-meta">{label_pill} {chips_html}</div>'
         f'    <div class="pqa-connection-artifact">{artifact_line}</div>'
         f'    {fix_html}'
@@ -1028,8 +1027,20 @@ class ImpactReport:
                     else:
                         gateway_chip = "gateway: unknown"
 
+                # v0.3.1 (revised): the artifact NAME is the clickable
+                # target. Clicking "HighRiskModel" opens THAT semantic
+                # model in the Fabric portal so the user can edit it for
+                # migration. Only the name is a link; the type tag is
+                # not, to keep the click target unambiguous.
+                _portal = artifact.fabric_portal_url()
+                _name_html = (
+                    f'<a href="{_escape(_portal)}" target="_blank" '
+                    f'rel="noopener noreferrer" class="pqa-artifact-link" '
+                    f'title="Open in Fabric to edit for migration">'
+                    f'<b>{_escape(artifact.item_name)}</b></a>'
+                )
                 artifact_line = (
-                    f'In: <b>{_escape(artifact.item_name)}</b> '
+                    f'In: {_name_html} '
                     f'<span style="color:#a19f9d;font-size:11px;">({_escape(artifact.item_type)})</span>'
                 )
 
@@ -1234,7 +1245,7 @@ class ImpactReport:
             f'<div class="pqa-kpis">{"".join(kpis)}</div>'
             '<div class="pqa-section-title">Connections by connector</div>'
             '<div class="pqa-section-desc">'
-            "Each row is clickable — <b>Open &#8599;</b> jumps to the item in the Fabric portal. "
+            "Click the <b>artifact name</b> (e.g., <i>In: HighRiskModel</i>) to open it in the Fabric portal and edit for migration. "
             "<b>&#10003; Ready</b> = tenant switch will handle it. "
             "<b>! Needs review</b> = custom DSN, gateway-backed ODBC pin, or gateway unknown. "
             "<b>&#10007; Will fail</b> = ODBC-pinned without a gateway; breaks at cutover."
@@ -1444,8 +1455,18 @@ class ValidationReport:
                 # apply to a SQL Server side-source in the same model.
                 show_diagnosis = call.is_migrating
 
+                # v0.3.1 (revised): hyperlink the artifact name in the
+                # validation section too, so David can jump straight to
+                # the model that failed refresh and fix it.
+                _portal = r.artifact.fabric_portal_url()
+                _name_html = (
+                    f'<a href="{_escape(_portal)}" target="_blank" '
+                    f'rel="noopener noreferrer" class="pqa-artifact-link" '
+                    f'title="Open in Fabric to edit for migration">'
+                    f'<b>{_escape(r.artifact.item_name)}</b></a>'
+                )
                 artifact_line = (
-                    f'In: <b>{_escape(r.artifact.item_name)}</b> '
+                    f'In: {_name_html} '
                     f'<span style="color:#a19f9d;font-size:11px;">({_escape(r.artifact.item_type)})</span> &middot; '
                     f'refresh <b>{_escape(r.status)}</b>'
                 )

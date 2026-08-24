@@ -3,7 +3,8 @@
 Covers:
 1. fabric_portal_url helper builds correct URLs per item type.
 2. ImpactedArtifact.fabric_portal_url delegates.
-3. HTML render contains an "Open ↗" link per row with the right href.
+3. HTML render hyperlinks the artifact NAME per row with the right href
+   (so clicking "HighRiskModel" opens that semantic model in Fabric).
 4. HTML render contains the filter toolbar with per-risk counts.
 5. HTML render contains the <script> filter block exactly once.
 6. HTML render tags each row with data-risk-filter attribute.
@@ -105,8 +106,9 @@ def test_html_render_includes_open_link_per_row():
     assert "app.fabric.microsoft.com/groups/ws-a/datasets/ds-fail" in html
     assert "app.fabric.microsoft.com/groups/ws-a/datasets/ds-warn" in html
     assert "app.fabric.microsoft.com/groups/ws-a/datasets/ds-ok" in html
-    # "Open ↗" pill text.
-    assert "Open &#8599;" in html
+    # v0.3.1 (revised per David): the artifact NAME itself is the link
+    # target — no separate "Open" pill.
+    assert 'class="pqa-artifact-link"' in html
     # target=_blank so it doesn't kill the notebook session.
     assert 'target="_blank"' in html
     # rel=noopener/noreferrer for safety.
@@ -288,18 +290,18 @@ def test_kpi_needs_review_matches_filter_button_count():
     assert 'Needs review<span class="pqa-filter-count">(2)</span>' in html
 
 
-def test_open_link_has_noopener_noreferrer():
-    """Security: Open ↗ links open in new tab with noopener + noreferrer
-    so the linked Fabric portal page cannot access window.opener."""
+def test_artifact_link_has_noopener_noreferrer():
+    """Security: artifact-name links open in a new tab with noopener +
+    noreferrer so the linked Fabric portal page cannot access
+    window.opener."""
     r = ImpactReport(workspace_id="ws")
     r.add(ImpactedArtifact(
         workspace_id="ws", item_id="a", item_name="A", item_type="SemanticModel",
         has_gateway=False, hits=[_mk_hit(implementation="1.0")],
     ))
     html = r._repr_html_()
-    # Extract the pqa-open-link anchor and confirm both attributes
-    m = re.search(r'<a[^>]*class="pqa-open-link"[^>]*>', html)
-    assert m, "no pqa-open-link anchor"
+    m = re.search(r'<a[^>]*class="pqa-artifact-link"[^>]*>', html)
+    assert m, "no pqa-artifact-link anchor"
     tag = m.group(0)
     assert 'target="_blank"' in tag
     assert 'rel="noopener noreferrer"' in tag
