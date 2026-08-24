@@ -214,10 +214,17 @@ def get_item_definition(
     if r is None:
         return None
     if r.status_code == 400:
-        # Unsupported item type or unsupported format -> treat as no-def.
         return None
     if r.status_code == 202:
         return _await_lro(r, access_token)
+    if r.status_code in (401, 403):
+        # v0.3.2 (gap 5): permission-denied on a single item must be
+        # distinguishable so the report can tell users "you don't have
+        # rights to inspect X" instead of a generic definition_unavailable.
+        # Discovery catches this and records skip_reason="permission_denied".
+        raise PermissionError(
+            f"HTTP {r.status_code} on getDefinition for {workspace_id}/{item_id}"
+        )
     if r.status_code >= 400:
         return None
     return r.json()
