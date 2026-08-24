@@ -103,6 +103,11 @@ def _fetch_definition_and_scan(
                 "item": item, "calls": [], "skip_reason": "permission_denied",
                 "source": None, "pipeline_refs": None,
             }
+        except FileNotFoundError:
+            return {
+                "item": item, "calls": [], "skip_reason": "deleted_during_scan",
+                "source": None, "pipeline_refs": None,
+            }
         if definition is None:
             return {
                 "item": item, "calls": [], "skip_reason": "definition_unavailable",
@@ -140,6 +145,11 @@ def _fetch_definition_and_scan(
         except PermissionError:
             return {
                 "item": item, "calls": [], "skip_reason": "permission_denied",
+                "source": None, "pipeline_refs": None,
+            }
+        except FileNotFoundError:
+            return {
+                "item": item, "calls": [], "skip_reason": "deleted_during_scan",
                 "source": None, "pipeline_refs": None,
             }
         if definition is None:
@@ -253,6 +263,14 @@ def scan_workspace(
                 report.record_skipped(
                     item.get("id", ""), item.get("displayName", ""),
                     item.get("type", ""), reason="permission_denied",
+                )
+            except FileNotFoundError:
+                # v0.3.3 (bug bash #8): artifact deleted between enumeration
+                # and getDefinition. Distinct label from generic error.
+                item = futures[fut]
+                report.record_skipped(
+                    item.get("id", ""), item.get("displayName", ""),
+                    item.get("type", ""), reason="deleted_during_scan",
                 )
             except Exception as e:
                 item = futures[fut]

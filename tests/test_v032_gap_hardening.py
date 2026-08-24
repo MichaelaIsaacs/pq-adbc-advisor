@@ -251,8 +251,12 @@ def test_get_item_definition_raises_permission_error_on_401(monkeypatch):
 def test_get_item_definition_returns_none_on_other_4xx(monkeypatch):
     from pq_adbc_advisor import fabric_api
 
+    # 405/410/etc. still fall through to None. v0.3.3 (bug bash #8)
+    # promoted 404 specifically to FileNotFoundError so the scanner can
+    # label it as ``deleted_during_scan``; that path is covered in
+    # test_v033_deep_bug_bash.py.
     def fake_retry(method, url, **kw):
-        return _FakeResponse(404)
+        return _FakeResponse(410)
     monkeypatch.setattr(fabric_api, "_request_with_retry", fake_retry)
 
     assert fabric_api.get_item_definition("ws", "item", "token") is None
