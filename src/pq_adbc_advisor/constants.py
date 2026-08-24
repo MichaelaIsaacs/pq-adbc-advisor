@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-TOOL_VERSION = "0.3.0"
+TOOL_VERSION = "0.3.3"
 
 # Migration bucket families.
 #   odbc_to_adbc  - connector is moving from an embedded ODBC driver to the ADBC path
@@ -235,6 +235,106 @@ LRO_FIRST_POLL_SEC = 1
 # Fabric APIs generally tolerate ~10 in flight per identity. Higher values
 # hit rate limits.
 DEFAULT_MAX_PARALLEL = 10
+
+# Fabric portal URL segment per item type (v0.3.1).
+# Used to render each row in the impact report as a clickable deep-link
+# straight to the artifact in the Fabric portal.  Missing entries fall
+# through to the generic /list?highlight= URL.
+FABRIC_PORTAL_URL_SEGMENT = {
+    "SemanticModel": "datasets",
+    "Dataset":       "datasets",
+    "Dataflow":      "dataflows",
+    "DataPipeline":  "pipelines",
+}
+
+# Cloud → Fabric portal base. Sovereign customers (US Gov, DoD, China) hit
+# distinct hostnames, so a hardcoded commercial URL sends them to a 404.
+# We ship the currently-published mappings but always allow an env-var
+# override for tenants on preview endpoints or private-preview clouds.
+#
+# References:
+#   * commercial: app.fabric.microsoft.com
+#   * US Gov (GCC): app.powerbigov.us (Fabric currently rides the PBI Gov URL)
+#   * GCC-High:    app.high.powerbigov.us
+#   * DoD:         app.mil.powerbigov.us
+#   * China 21V:   app.powerbi.cn
+FABRIC_PORTAL_BASES = {
+    "commercial": "https://app.fabric.microsoft.com",
+    "gcc":        "https://app.powerbigov.us",
+    "gcc-high":   "https://app.high.powerbigov.us",
+    "dod":        "https://app.mil.powerbigov.us",
+    "china":      "https://app.powerbi.cn",
+}
+FABRIC_PORTAL_BASE = FABRIC_PORTAL_BASES["commercial"]
+
+
+def _resolve_portal_base(cloud: str | None) -> str:
+    """Return the portal base URL for the requested cloud.
+
+    Precedence:
+      1. Explicit ``cloud=`` argument (known key wins over env).
+      2. ``PQ_ADBC_ADVISOR_PORTAL_BASE`` env var — full override, useful
+         for private-preview endpoints Fabric hasn't published yet.
+      3. ``PQ_ADBC_ADVISOR_CLOUD`` env var (commercial/gcc/gcc-high/dod/china).
+      4. Commercial default.
+    """
+    import os
+    if cloud:
+        return FABRIC_PORTAL_BASES.get(cloud.lower(), FABRIC_PORTAL_BASE)
+    override = os.environ.get("PQ_ADBC_ADVISOR_PORTAL_BASE")
+    if override:
+        return override.rstrip("/")
+    env_cloud = os.environ.get("PQ_ADBC_ADVISOR_CLOUD")
+    if env_cloud:
+        return FABRIC_PORTAL_BASES.get(env_cloud.lower(), FABRIC_PORTAL_BASE)
+    return FABRIC_PORTAL_BASE
+
+
+def fabric_portal_url(
+    workspace_id: str,
+    item_id: str,
+    item_type: str,
+    *,
+    cloud: str | None = None,
+    is_personal: bool = False,
+) -> str | None:
+    """Return the Fabric portal deep-link for a workspace item.
+
+    Returns None if we cannot build a usable link:
+      - workspace_id is missing (would render /groups/None/...);
+      - item_id is missing but the type is deep-linkable (would 404).
+    When the item type is not one of the well-known deep-linkable
+    segments but workspace_id is known, we fall back to that
+    workspace's item list view.
+
+    ``cloud`` and ``is_personal`` (v0.3.2):
+      * ``cloud``: one of commercial | gcc | gcc-high | dod | china.
+        None means "read env / default to commercial". This lets sovereign-
+        cloud customers get correct hrefs without a code fork.
+      * ``is_personal``: True when the item lives in the caller's "My
+        Workspace" — that route uses ``/me/{seg}/{id}`` instead of
+        ``/groups/{ws}/{seg}/{id}``. workspace_id is ignored in this case.
+
+    Callers must treat None as "render the item name as plain text,
+    no anchor" so users never see a broken href.
+    """
+    base = _resolve_portal_base(cloud)
+    seg = FABRIC_PORTAL_URL_SEGMENT.get(item_type)
+
+    if is_personal:
+        if seg:
+            if not item_id:
+                return None
+            return f"{base}/me/{seg}/{item_id}"
+        return f"{base}/me/list"
+
+    if not workspace_id:
+        return None
+    if seg:
+        if not item_id:
+            return None
+        return f"{base}/groups/{workspace_id}/{seg}/{item_id}"
+    return f"{base}/groups/{workspace_id}/list"
 
 # 429/503 retry wrapper tuning (v0.2.4).
 # Prior versions silently returned None on throttle, causing whole artifacts
