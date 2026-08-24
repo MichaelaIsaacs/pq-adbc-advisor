@@ -42,6 +42,11 @@ class ImpactedArtifact:
     hits: list[ConnectorCall]           # ALL connector calls (migrating + not)
     has_gateway: bool | None = None
     workspace_name: str = ""
+    # v0.3.2: sovereign cloud + My Workspace awareness.
+    # None means "read env / commercial default" so existing callers
+    # keep the same behavior.
+    is_personal: bool = False
+    cloud: str | None = None
 
     @property
     def worst_risk(self) -> str:
@@ -62,9 +67,12 @@ class ImpactedArtifact:
         return any(h.is_migrating for h in self.hits)
 
     def fabric_portal_url(self) -> str:
-        """Return a Fabric portal deep-link for this artifact (v0.3.1)."""
+        """Return a Fabric portal deep-link for this artifact (v0.3.1; sovereign-aware v0.3.2)."""
         from .constants import fabric_portal_url
-        return fabric_portal_url(self.workspace_id, self.item_id, self.item_type)
+        return fabric_portal_url(
+            self.workspace_id, self.item_id, self.item_type,
+            cloud=self.cloud, is_personal=self.is_personal,
+        )
 
 
 @dataclass
