@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-TOOL_VERSION = "0.3.0"
+TOOL_VERSION = "0.3.1"
 
 # Migration bucket families.
 #   odbc_to_adbc  - connector is moving from an embedded ODBC driver to the ADBC path
@@ -235,6 +235,30 @@ LRO_FIRST_POLL_SEC = 1
 # Fabric APIs generally tolerate ~10 in flight per identity. Higher values
 # hit rate limits.
 DEFAULT_MAX_PARALLEL = 10
+
+# Fabric portal URL segment per item type (v0.3.1).
+# Used to render each row in the impact report as a clickable deep-link
+# straight to the artifact in the Fabric portal.  Missing entries fall
+# through to the generic /list?highlight= URL.
+FABRIC_PORTAL_URL_SEGMENT = {
+    "SemanticModel": "datasets",
+    "Dataset":       "datasets",
+    "Dataflow":      "dataflows",
+    "DataPipeline":  "pipelines",
+}
+FABRIC_PORTAL_BASE = "https://app.fabric.microsoft.com"
+
+
+def fabric_portal_url(workspace_id: str, item_id: str, item_type: str) -> str:
+    """Return the Fabric portal deep-link for a workspace item.
+
+    Falls back to the workspace's item list view when the item type is
+    not one of the well-known deep-linkable segments.
+    """
+    seg = FABRIC_PORTAL_URL_SEGMENT.get(item_type)
+    if seg:
+        return f"{FABRIC_PORTAL_BASE}/groups/{workspace_id}/{seg}/{item_id}"
+    return f"{FABRIC_PORTAL_BASE}/groups/{workspace_id}/list"
 
 # 429/503 retry wrapper tuning (v0.2.4).
 # Prior versions silently returned None on throttle, causing whole artifacts
