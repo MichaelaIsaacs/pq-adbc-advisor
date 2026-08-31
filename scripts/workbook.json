@@ -98,7 +98,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| summarize \n    Scans = count(),\n    Workspaces = dcount(tostring(customDimensions.workspace_id)),\n    Tenants = dcount(tostring(customDimensions.tenant_hash)),\n    Versions = dcount(tostring(customDimensions.version))",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| summarize \n    Users = dcountif(tostring(customDimensions.user_hash), tostring(customDimensions.user_hash) != ''),\n    Scans = count(),\n    Workspaces = dcount(tostring(customDimensions.workspace_id)),\n    Tenants = dcount(tostring(customDimensions.tenant_hash)),\n    Versions = dcount(tostring(customDimensions.version))",
         "size": 3,
         "queryType": 0,
         "resourceType": "microsoft.insights/components",

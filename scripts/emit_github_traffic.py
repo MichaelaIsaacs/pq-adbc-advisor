@@ -56,11 +56,21 @@ def collect_github_metrics() -> dict:
         raise RuntimeError("GITHUB_TOKEN is required")
     metrics: dict = {}
 
-    # Traffic — clones + views (14-day rolling)
+    # Traffic — clones + views (14-day rolling) — include the per-day
+    # breakdown so the dashboard can chart the clones curve, not just
+    # the total.
     try:
         clones = _gh(f"/repos/{REPO}/traffic/clones")
         metrics["clones_14d"] = clones.get("count", 0)
         metrics["unique_cloners_14d"] = clones.get("uniques", 0)
+        # Flatten the per-day array into indexed fields so App Insights
+        # customDimensions doesn't need JSON parsing on the KQL side.
+        daily = clones.get("clones", []) or []
+        for i, day in enumerate(daily[-14:]):
+            metrics[f"clones_day_{i}_date"] = (day.get("timestamp") or "")[:10]
+            metrics[f"clones_day_{i}_count"] = day.get("count", 0)
+            metrics[f"clones_day_{i}_unique"] = day.get("uniques", 0)
+        metrics["clones_days"] = min(len(daily), 14)
     except Exception as e:
         metrics["clones_error"] = str(e)[:200]
 

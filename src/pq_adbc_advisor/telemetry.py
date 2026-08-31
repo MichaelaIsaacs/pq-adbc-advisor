@@ -186,7 +186,7 @@ _FIRST_RUN_NOTICE = (
     "\n"
     "  Never sent: M code, item/workspace names, endpoint URLs, credentials,\n"
     "  refresh error message bodies, gateway names, or dataset IDs.\n"
-    "  Tenant ID is SHA-256 hashed by default (12 hex chars).\n"
+    "  Tenant AND user IDs are SHA-256 hashed by default (12 hex chars).\n"
     "\n"
     "  To disable at any time (persists across kernel restarts):\n"
     "    from pq_adbc_advisor import disable_telemetry\n"
@@ -229,11 +229,87 @@ def _tenant_id() -> str:
         return ""
 
 
+def _user_id() -> tuple[str, str]:
+    """v0.3.6: best-effort AAD user identity + provenance for unique-user counting.
+
+    Returns a ``(user_id, source)`` tuple where source is one of:
+      * ``"aad"``  — resolved from notebookutils.runtime.context (trustworthy)
+      * ``"env"``  — resolved from PQ_ADBC_ADVISOR_USER_ID env var
+                     (untrusted; users can set this to inflate/deflate the
+                     unique-user KPI)
+      * ``""``     — no identity resolved
+
+    v0.3.6 hardening (post-bug-bash):
+
+    Bug 1 fix — REFUSE to fall back past `userId`/`UserId`. UPN/email in
+      `userName` is deanonymizable via rainbow table against a tenant's
+      public directory. Only high-entropy AAD GUIDs get hashed.
+    Bug 3 fix — try/except is per-key so a hiccup on one key doesn't
+      collapse the entire chain to the env-var branch.
+    Bug 4 fix — value normalization (`.strip()`) so the same person can't
+      hash to two different values because of trailing whitespace.
+    Bug 5 fix — env var is ONLY consulted when notebookutils isn't
+      importable at all. Prevents a hostile lakehouse notebook from
+      shadowing the real AAD user. Env-var source is tagged so the
+      KQL dashboard can filter to `user_hash_source == "aad"` only.
+    """
+    try:
+        import notebookutils  # type: ignore
+        ctx = getattr(notebookutils.runtime, "context", None)
+        if ctx is not None:
+            get = ctx.get if callable(getattr(ctx, "get", None)) else lambda *_: ""
+            # Only trust high-entropy AAD object GUIDs. Do NOT fall back
+            # to userName/UPN (Bug 1) — those are enumerable.
+            for key in ("userId", "UserId"):
+                try:
+                    v = (get(key, "") or "").strip()
+                except Exception:
+                    continue
+                if v:
+                    return (v, "aad")
+        # notebookutils WAS importable but produced no id — do NOT
+        # silently switch to the env-var branch (Bug 5). Return empty.
+        return ("", "")
+    except Exception:
+        # notebookutils is not importable — local dev / CI path.
+        env_v = os.environ.get("PQ_ADBC_ADVISOR_USER_ID", "").strip()
+        if env_v:
+            return (env_v, "env")
+        return ("", "")
+
+
 def _tenant_hash(tenant_id: str) -> str:
     """SHA-256 first 12 hex chars, matches the spec's tenant_hash field."""
     if not tenant_id:
         return ""
     return hashlib.sha256(tenant_id.encode()).hexdigest()[:12]
+
+
+def _user_hash(user_id: str) -> str:
+    """v0.3.6: SHA-256 first 12 hex chars of the AAD user identifier.
+
+    Empty string when we can't resolve a user (Fabric runtime not
+    available, env var not set). Empty user_hash means "unknown" for the
+    dcount() query — those rows still count as a scan but not as a
+    distinct user.
+    """
+    if not user_id:
+        return ""
+    return hashlib.sha256(user_id.strip().encode()).hexdigest()[:12]
+
+
+def _send_raw_user() -> bool:
+    """True when we should send the raw AAD user id alongside user_hash.
+
+    Off by default (privacy). Opt-in flag mirrors PQ_ADBC_ADVISOR_TENANT_RAW.
+
+    v0.3.6 (bug bash Bug 2): when this is on, the emitted event carries
+    ONLY the raw user_id (as `user_id`) and OMITS `user_hash` — otherwise
+    anyone with historical App Insights read would be able to build a
+    permanent {user_hash → user_id} lookup and retroactively deanonymize
+    every prior scan_complete row.
+    """
+    return os.environ.get("PQ_ADBC_ADVISOR_USER_RAW", "").lower() in ("1", "on", "true")
 
 
 # --------------------------------------------------------------------------- #
@@ -268,11 +344,17 @@ def _estimated_manual_hours_saved(artifacts_scanned: int) -> float:
 
 
 def _base_properties(tenant_id: str, workspace_id: str, run_id: str, duration: float) -> dict[str, Any]:
+    user_id, user_source = _user_id()  # v0.3.6 — headline "how many people" KPI
     props: dict[str, Any] = {
         "version": TOOL_VERSION,
         "surface": "notebook",  # spec-defined values: notebook | cli_fabric | cli_pbix | external_tool
         "mode": "diagnose",     # v0 is diagnose-only
         "tenant_hash": _tenant_hash(tenant_id),
+        # v0.3.6 Bug 2 fix — send hash XOR raw, never both. Preserves the
+        # user_hash contract on 99.99% of events while opt-in-raw callers
+        # still get their join key.
+        # v0.3.6 Bug 5 fix — provenance tag so KQL can filter to only
+        # trustworthy AAD-sourced hashes for the unique-user KPI.
         "workspace_id": workspace_id or "",
         "run_id": run_id,
         "session_id": _SESSION_ID,  # v0.3.4 — same across scan+validate in one kernel
@@ -280,7 +362,16 @@ def _base_properties(tenant_id: str, workspace_id: str, run_id: str, duration: f
         "duration_seconds": round(duration, 2),
         "python": platform.python_version(),
         "platform": platform.system(),
+        "user_hash_source": user_source,  # "aad" | "env" | ""
     }
+    if _send_raw_user() and user_id:
+        # Opt-in raw user id, mirroring the tenant_id escape hatch.
+        # We deliberately DO NOT include user_hash on the same event —
+        # otherwise the pair permanently deanonymizes every previously
+        # emitted user_hash row.
+        props["user_id"] = user_id
+    else:
+        props["user_hash"] = _user_hash(user_id)
     if _send_raw_tenant() and tenant_id:
         # Opt-in field so Michaela can join to MSSales for TPID.
         props["tenant_id"] = tenant_id

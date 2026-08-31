@@ -269,10 +269,10 @@
       // ---- Reach ---------------------------------------------------
       const r = d.reach || {};
       document.getElementById("kpi-reach").innerHTML =
+        kpi("Unique users", int(r.users), "hashed AAD identity", "good") +
         kpi("Total scans", int(r.scans), null, "accent") +
         kpi("Unique workspaces", int(r.workspaces)) +
-        kpi("Tenants", int(r.tenants), "hashed") +
-        kpi("Released versions", (d.versions || []).length, "0.2.1 → 0.3.5", "good");
+        kpi("Tenants", int(r.tenants), "hashed");
 
       // Trend chart
       const trend = (d.trend || []);
