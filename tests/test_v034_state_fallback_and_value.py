@@ -36,12 +36,14 @@ from pq_adbc_advisor.report import ImpactedArtifact, ImpactReport
 
 @pytest.fixture
 def isolated_backends(tmp_path, monkeypatch):
-    """Point both state paths at temp dirs, and reset the warn-once flags
-    so each test can observe them fresh."""
+    """Point all state paths at temp dirs (baseline + opt-out), and reset
+    the warn-once flags so each test can observe them fresh."""
     lakehouse = tmp_path / "lakehouse" / "pq_adbc_advisor_state.json"
     home      = tmp_path / "home"      / "state.json"
 
     monkeypatch.setattr(state, "_LAKEHOUSE_PATH", str(lakehouse))
+    monkeypatch.setattr(state, "_LAKEHOUSE_OPT_OUT", str(tmp_path / "lakehouse" / "opt_out.json"))
+    monkeypatch.setattr(state, "_HOME_DIR", str(tmp_path / "home"))
     monkeypatch.setattr(state, "_home_fallback_path", lambda: str(home))
 
     # Reset warn-once markers.
@@ -81,6 +83,14 @@ def test_save_state_writes_to_lakehouse_when_writable(isolated_backends):
     assert state.state_backend() == "lakehouse"
 
 
+def _legacy_home_state(tmp: Any) -> Any:
+    """v0.3.5: the home fallback now uses a per-workspace filename.
+    Legacy callers (no workspace_id passed) hit ``state-notenant-legacy.json``
+    inside the sanitized home dir.
+    """
+    return tmp / "home" / "state-notenant-legacy.json"
+
+
 def test_save_state_falls_back_to_home_when_lakehouse_read_only(isolated_backends, monkeypatch):
     # Make the lakehouse dir unwritable by pointing it at a path that
     # can't be created. os.makedirs on a real file will raise NotADirectory.
@@ -92,7 +102,8 @@ def test_save_state_falls_back_to_home_when_lakehouse_read_only(isolated_backend
     monkeypatch.setattr("builtins.print", lambda *a, **kw: captured.append(" ".join(str(x) for x in a)))
     ok = state.save_state({"schema_version": 1, "hello": "world"})
     assert ok is True
-    assert isolated_backends["home"].exists()
+    # v0.3.5: legacy (no workspace_id) writes land in state-notenant-legacy.json
+    assert _legacy_home_state(isolated_backends["tmp"]).exists()
     assert any("~/.pq-adbc-advisor" in m or "home" in m.lower() or ".pq-adbc-advisor" in m for m in captured), \
         f"expected home-fallback warning, got: {captured}"
     assert state.state_backend() == "home"
@@ -104,6 +115,9 @@ def test_save_state_reports_memory_when_no_backend_writable(isolated_backends, m
     bad_home = isolated_backends["tmp"] / "no-write-home"
     bad_home.write_text("blocked")
     monkeypatch.setattr(state, "_LAKEHOUSE_PATH", str(bad_lakehouse / "state.json"))
+    # v0.3.5: both the legacy home function AND _HOME_DIR need to point at
+    # blocked paths so the state module cannot create the workspace-keyed file.
+    monkeypatch.setattr(state, "_HOME_DIR", str(bad_home))
     monkeypatch.setattr(state, "_home_fallback_path", lambda: str(bad_home / "state.json"))
 
     captured: list[str] = []
@@ -138,7 +152,7 @@ def test_first_and_second_run_round_trip_through_home_fallback(isolated_backends
     assert first["is_first_run"] is True
     assert first["run_count"] == 1
     assert first["first_risk_high"] == 3
-    assert isolated_backends["home"].exists()
+    assert isolated_backends["home"].exists() or _legacy_home_state(isolated_backends["tmp"]).exists()
 
     # Second run: baseline preserved, run_count bumps to 2.
     second = state.compute_run_state(
@@ -206,9 +220,12 @@ def test_scan_complete_payload_carries_value_story_fields(isolated_backends, mon
     assert props1["skipped_by_reason_deleted_during_scan"] == "1"
     assert props1["skipped_by_reason_permission_denied"] == "1"
 
-    # Value narrative: manual hours saved = artifacts_scanned * 3min / 60.
-    # We scan 1 artifact + 2 skipped = 3 artifacts_scanned. 3*3/60 = 0.15h.
-    assert float(props1["estimated_manual_hours_saved"]) == pytest.approx(0.15, abs=0.01)
+    # v0.3.5 Bug 7 fix: hours-saved now uses INSPECTED items only, not
+    # scanned+skipped. This report inspects 1 artifact → 1*3/60 = 0.05h.
+    assert float(props1["estimated_manual_hours_saved"]) == pytest.approx(0.05, abs=0.01)
+    # And the new inspected_artifacts field lands on the wire.
+    assert int(props1["inspected_artifacts"]) == 1
+    assert int(props1["artifacts_scanned"]) == 3  # 1 inspected + 2 skipped
 
     # state_backend reflects the isolated_backends fixture (lakehouse writable).
     assert props1["state_backend"] in ("lakehouse", "home")

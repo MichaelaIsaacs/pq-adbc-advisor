@@ -1,0 +1,328 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# PQ ADBC Advisor — Impact & Adoption\n\nLive telemetry from workspaces running `pq-adbc-advisor` against the ADBC connector migration. Every scan sends anonymous counts (no M code, no item names, no credentials). This board tracks:\n\n- **Reach** — unique workspaces, scans, tenants\n- **Resolution** — pins / risk artifacts cleaned up since baseline\n- **Health** — send success + coverage + skip reasons\n\nCurrent version: v0.3.5. Source: https://github.com/MichaelaIsaacs/pq-adbc-advisor"
+      },
+      "name": "header"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "range",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "value": {"durationMs": 2592000000},
+            "typeSettings": {
+              "selectableValues": [
+                {"durationMs": 604800000},
+                {"durationMs": 2592000000},
+                {"durationMs": 7776000000},
+                {"durationMs": 31536000000}
+              ]
+            }
+          }
+        ]
+      },
+      "name": "params"
+    },
+    {
+      "type": 1,
+      "content": {"json": "## Distribution reach (GitHub)\n\nDaily rollup emitted by `.github/workflows/github-traffic-to-ai.yml` — GitHub Traffic API clones/views (14d rolling) + release downloads (cumulative). Repo-level, not per-user."},
+      "name": "distribution-h"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == 'github_traffic' and timestamp {TimeRange}\n| top 1 by timestamp desc\n| project \n    Clones_14d = toint(customDimensions.clones_14d),\n    Unique_cloners_14d = toint(customDimensions.unique_cloners_14d),\n    Views_14d = toint(customDimensions.views_14d),\n    Unique_viewers_14d = toint(customDimensions.unique_viewers_14d),\n    Total_release_downloads = toint(customDimensions.total_release_downloads),\n    Stargazers = toint(customDimensions.stargazers)",
+        "size": 3,
+        "title": "Latest GitHub distribution snapshot",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "tiles"
+      },
+      "name": "distribution-tiles"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == 'github_traffic' and timestamp {TimeRange}\n| project timestamp, \n    clones = toint(customDimensions.clones_14d),\n    unique_cloners = toint(customDimensions.unique_cloners_14d),\n    views = toint(customDimensions.views_14d),\n    unique_viewers = toint(customDimensions.unique_viewers_14d)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Clones and views over time (14-day rolling)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "name": "distribution-time"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == 'github_traffic' and timestamp {TimeRange}\n| top 1 by timestamp desc\n| project cds = customDimensions\n| mv-expand cd = bag_keys(cds)\n| where tostring(cd) startswith 'release_downloads_'\n| extend Release = replace_string(tostring(cd), 'release_downloads_', '')\n| extend Downloads = toint(cds[tostring(cd)])\n| order by Release desc",
+        "size": 0,
+        "title": "Release downloads by version (latest snapshot)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart"
+      },
+      "name": "distribution-releases"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == 'github_traffic' and timestamp {TimeRange}\n| top 1 by timestamp desc\n| project \n    top_1 = tostring(customDimensions.top_referrer_1), top_1_count = toint(customDimensions.top_referrer_1_count),\n    top_2 = tostring(customDimensions.top_referrer_2), top_2_count = toint(customDimensions.top_referrer_2_count),\n    top_3 = tostring(customDimensions.top_referrer_3), top_3_count = toint(customDimensions.top_referrer_3_count)",
+        "size": 0,
+        "title": "Top traffic referrers (latest)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "distribution-referrers"
+    },
+    {
+      "type": 1,
+      "content": {"json": "## Reach"},
+      "name": "reach-h"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| summarize \n    Scans = count(),\n    Workspaces = dcount(tostring(customDimensions.workspace_id)),\n    Tenants = dcount(tostring(customDimensions.tenant_hash)),\n    Versions = dcount(tostring(customDimensions.version))",
+        "size": 3,
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "tiles",
+        "tileSettings": {
+          "titleContent": {"columnMatch": "Column1"},
+          "leftContent": {"columnMatch": "Column1", "formatter": 12, "formatOptions": {"palette": "auto"}},
+          "showBorder": true
+        }
+      },
+      "customWidth": "100",
+      "name": "reach-tiles"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| summarize Scans = count(), Workspaces = dcount(tostring(customDimensions.workspace_id)) by bin(timestamp, 1d)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Scans and unique workspaces per day",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "name": "reach-time"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| summarize Scans=count(), Workspaces=dcount(tostring(customDimensions.workspace_id)), Tenants=dcount(tostring(customDimensions.tenant_hash)) by Version=tostring(customDimensions.version)\n| order by Scans desc",
+        "size": 0,
+        "title": "Adoption by version",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "reach-versions"
+    },
+    {
+      "type": 1,
+      "content": {"json": "## Resolution — the migration progress story\n\nEvery return-run carries both the baseline (`first_*`) and current (`current_*`) counters, plus pre-computed deltas (`resolved_*`, v0.3.5+). Positive delta = the tool showed a problem and someone fixed it. Negative delta = workspace grew after baseline."},
+      "name": "resolution-h"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete' and tostring(customDimensions.is_first_run) == 'False'\n| summarize \n    ODBC_pins_resolved = sum(toint(customDimensions.resolved_pinned_odbc)),\n    High_risk_resolved = sum(toint(customDimensions.resolved_risk_high)),\n    Medium_risk_resolved = sum(toint(customDimensions.resolved_risk_medium)),\n    Impacted_artifacts_resolved = sum(toint(customDimensions.resolved_migrating_artifacts))",
+        "size": 3,
+        "title": "Total resolved since baseline (all workspaces, this window)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "tiles",
+        "tileSettings": {
+          "titleContent": {"columnMatch": "Column1"},
+          "leftContent": {"columnMatch": "Column1", "formatter": 12},
+          "showBorder": true
+        }
+      },
+      "name": "resolution-tiles"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete' and tostring(customDimensions.is_first_run) == 'False'\n| extend delta = toint(customDimensions.resolved_pinned_odbc)\n| summarize Cleaned_up = sum(delta) by bin(timestamp, 1d)\n| order by timestamp asc",
+        "size": 0,
+        "title": "ODBC pins resolved per day",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart"
+      },
+      "name": "resolution-time"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete' and tostring(customDimensions.is_first_run) == 'False'\n| project cds = customDimensions\n| mv-expand cd = bag_keys(cds)\n| where tostring(cd) startswith 'resolved_by_connector_'\n| extend Connector = replace_string(tostring(cd), 'resolved_by_connector_', '')\n| extend Delta = toint(cds[tostring(cd)])\n| summarize Resolved = sum(Delta) by Connector\n| where Resolved != 0\n| order by Resolved desc",
+        "size": 0,
+        "title": "Resolution by connector",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart"
+      },
+      "name": "resolution-by-connector"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete' and tostring(customDimensions.is_first_run) == 'False'\n| project timestamp, \n    workspace = tostring(customDimensions.workspace_id),\n    tenant = tostring(customDimensions.tenant_hash),\n    baseline_high = toint(customDimensions.first_risk_high),\n    current_high = toint(customDimensions.current_risk_high),\n    resolved_high = toint(customDimensions.resolved_risk_high),\n    baseline_pinned = toint(customDimensions.first_pinned_odbc),\n    current_pinned = toint(customDimensions.current_pinned_odbc),\n    resolved_pinned = toint(customDimensions.resolved_pinned_odbc),\n    days_since_first = toreal(customDimensions.time_since_first_scan_days),\n    run_count = toint(customDimensions.run_count),\n    version = tostring(customDimensions.version)\n| summarize arg_max(timestamp, *) by workspace\n| order by resolved_pinned desc",
+        "size": 0,
+        "title": "Per-workspace progress (latest return scan)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "resolution-per-ws"
+    },
+    {
+      "type": 1,
+      "content": {"json": "## Value narrative\n\n`estimated_manual_hours_saved = inspected_artifacts × 3 min / 60`. v0.3.5+ credits inspected items only (previously counted skipped items too — a 100x overclaim on gated workspaces)."},
+      "name": "value-h"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| summarize \n    Manual_hours_saved = sum(toreal(customDimensions.estimated_manual_hours_saved)),\n    Artifacts_inspected = sum(toint(customDimensions.inspected_artifacts)),\n    Median_coverage_pct = percentile(toint(customDimensions.coverage_score_pct), 50),\n    Sempy_hit_rate = 100.0 * countif(tostring(customDimensions.sempy_used) == 'True') / count()",
+        "size": 3,
+        "title": "Aggregate value + performance signals",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "tiles"
+      },
+      "name": "value-tiles"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| summarize Hours = sum(toreal(customDimensions.estimated_manual_hours_saved)) by bin(timestamp, 1d)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Manual hours saved per day",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "areachart"
+      },
+      "name": "value-time"
+    },
+    {
+      "type": 1,
+      "content": {"json": "## Health & reliability"},
+      "name": "health-h"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| project cds = customDimensions\n| mv-expand cd = bag_keys(cds)\n| where tostring(cd) startswith 'skipped_by_reason_'\n| extend reason = replace_string(tostring(cd), 'skipped_by_reason_', '')\n| extend n = toint(cds[tostring(cd)])\n| summarize count = sum(n) by reason\n| order by count desc",
+        "size": 0,
+        "title": "Skip reasons (why we couldn't fully cover a workspace)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart"
+      },
+      "name": "health-skip"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| summarize Scans = count() by StateBackend = tostring(customDimensions.state_backend)\n| order by Scans desc",
+        "size": 0,
+        "title": "State backend — how many scans have durable baselines",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "piechart"
+      },
+      "customWidth": "50",
+      "name": "health-backend"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| extend duration = toreal(customDimensions.duration_seconds)\n| summarize p50 = percentile(duration, 50), p90 = percentile(duration, 90), p99 = percentile(duration, 99) by bin(timestamp, 1d)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Scan duration (p50 / p90 / p99, seconds)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "customWidth": "50",
+      "name": "health-duration"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'validation_complete'\n| summarize \n    Validated = sum(toint(customDimensions.validated_count)),\n    Passed = sum(toint(customDimensions.passed)),\n    Passed_with_regression = sum(toint(customDimensions.passed_with_regression)),\n    Failed = sum(toint(customDimensions.failed))",
+        "size": 3,
+        "title": "Validation outcomes",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "tiles"
+      },
+      "name": "health-validation"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete'\n| summarize scans = count() by version = tostring(customDimensions.version), first_run = tostring(customDimensions.is_first_run)\n| order by version asc",
+        "size": 0,
+        "title": "First-run vs return-run split (proves users iterate, not just kick tires)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart",
+        "chartSettings": {"seriesLabelSettings": [{"seriesName": "True"}, {"seriesName": "False"}]}
+      },
+      "name": "health-firstrun-split"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where timestamp {TimeRange}\n| where name == 'scan_complete' and tostring(customDimensions.is_first_run) == 'False'\n| extend days = toreal(customDimensions.time_since_first_scan_days)\n| where days > 0\n| summarize p50 = percentile(days, 50), p90 = percentile(days, 90), median_days = percentile(days, 50)\n| project P50_days_to_return = p50, P90_days_to_return = p90",
+        "size": 3,
+        "title": "Time from first scan → return scan (proves iterative use)",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "tiles"
+      },
+      "name": "health-time-to-return"
+    },
+    {
+      "type": 1,
+      "content": {"json": "---\nSource: [github.com/MichaelaIsaacs/pq-adbc-advisor](https://github.com/MichaelaIsaacs/pq-adbc-advisor) · Board maintained by Michaela Isaacs."},
+      "name": "footer"
+    }
+  ],
+  "styleSettings": {},
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
