@@ -231,6 +231,37 @@ def _tenant_hash(tenant_id: str) -> str:
     return hashlib.sha256(tenant_id.encode()).hexdigest()[:12]
 
 
+# --------------------------------------------------------------------------- #
+# Session identity (v0.3.4)
+# --------------------------------------------------------------------------- #
+# One notebook can run scan_workspace(), then validate_migration(), then
+# scan_workspace() again. All three should share a session_id so we can
+# tell "unique scans" apart from "one session, three phases" in KQL.
+_SESSION_ID = uuid.uuid4().hex
+
+
+def session_id() -> str:
+    return _SESSION_ID
+
+
+# --------------------------------------------------------------------------- #
+# Value-story helpers (v0.3.4)
+# --------------------------------------------------------------------------- #
+# Every field below answers the question "why is this tool worth the
+# session cost?". We only send derived numbers, never M code or names.
+#
+# _MANUAL_TRIAGE_MIN_PER_ARTIFACT reflects the PM team's assumption for
+# per-artifact manual triage (open item, inspect definition, cross-check
+# gateway binding). It's conservative on purpose; the KQL narrative is
+# "we scanned N artifacts in D seconds vs an estimated N * this-many
+# minutes if the customer had triaged by hand".
+_MANUAL_TRIAGE_MIN_PER_ARTIFACT = 3
+
+
+def _estimated_manual_hours_saved(artifacts_scanned: int) -> float:
+    return round((artifacts_scanned * _MANUAL_TRIAGE_MIN_PER_ARTIFACT) / 60.0, 2)
+
+
 def _base_properties(tenant_id: str, workspace_id: str, run_id: str, duration: float) -> dict[str, Any]:
     props: dict[str, Any] = {
         "version": TOOL_VERSION,
@@ -239,6 +270,8 @@ def _base_properties(tenant_id: str, workspace_id: str, run_id: str, duration: f
         "tenant_hash": _tenant_hash(tenant_id),
         "workspace_id": workspace_id or "",
         "run_id": run_id,
+        "session_id": _SESSION_ID,  # v0.3.4 — same across scan+validate in one kernel
+        "state_backend": _state.state_backend(),  # v0.3.4 — lakehouse | home | memory
         "duration_seconds": round(duration, 2),
         "python": platform.python_version(),
         "platform": platform.system(),
@@ -308,13 +341,31 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
 
     # Spec-compatible fields (event name + field names from the spec) FIRST.
     props = _base_properties(tenant_id, workspace_id, run_id, duration_seconds)
+    artifacts_scanned = len(report.artifacts) + len(report.skipped)
     props.update({
-        "artifacts_scanned": len(report.artifacts) + len(report.skipped),
+        "artifacts_scanned": artifacts_scanned,
         "impacted_count": migrating_artifacts,
         "odbc_pinned_count": pinned_odbc,
         "odbc_pinned_at_risk_count": pinned_at_risk,
         "scope": report.scope,
     })
+    # v0.3.4 value-story fields:
+    #   coverage_score_pct   — how much of the workspace we could inspect
+    #   sempy_hits           — how many items used the fast path
+    #   sempy_used           — whether the sempy fast path was on
+    #   skipped_by_reason_*  — one field per skip reason so KQL can chart
+    #                          "what actually blocks a clean scan"
+    #   estimated_manual_hours_saved — value narrative for leadership
+    try:
+        coverage = report.coverage()
+        props["coverage_score_pct"] = coverage.get("score_pct", 0)
+    except Exception:
+        props["coverage_score_pct"] = 0
+    props["sempy_hits"] = getattr(report, "sempy_hits", 0)
+    props["sempy_used"] = bool(getattr(report, "used_sempy_path", False))
+    props["estimated_manual_hours_saved"] = _estimated_manual_hours_saved(artifacts_scanned)
+    for reason, count in report.skipped_by_reason().items():
+        props[f"skipped_by_reason_{_safe_key(reason)}"] = count
     # Spec's ``impacts_by_connector`` field, flattened as one property per
     # connector so the KQL ``mv-expand impacts_by_connector`` query works
     # against ``customDimensions``.
