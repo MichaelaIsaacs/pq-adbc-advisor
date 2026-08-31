@@ -1,4 +1,4 @@
-name: emit github traffic to app insights
+name: emit github traffic + rebuild dashboard
 
 on:
   schedule:
@@ -6,20 +6,42 @@ on:
     - cron: '15 8 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write   # needed to commit the refreshed snapshot back to main
+
 jobs:
-  emit:
+  refresh:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Emit github_traffic customEvent
         env:
-          # PAT with repo scope for Traffic API. Store as an org/repo secret.
           GITHUB_TOKEN: ${{ secrets.TRAFFIC_PAT }}
           REPO: ${{ github.repository }}
           AI_CONNECTION_STRING: ${{ secrets.AI_CONNECTION_STRING }}
         run: python scripts/emit_github_traffic.py
+
+      - name: Rebuild dashboard snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.TRAFFIC_PAT }}
+          REPO: ${{ github.repository }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+        run: python scripts/build_dashboard_snapshot.py
+        continue-on-error: true
+
+      - name: Commit refreshed snapshot
+        run: |
+          if git diff --quiet dashboard/data/snapshot.json; then
+            echo "no changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dashboard/data/snapshot.json
+          git commit -m "dashboard: refresh snapshot [skip ci]"
+          git push
+
