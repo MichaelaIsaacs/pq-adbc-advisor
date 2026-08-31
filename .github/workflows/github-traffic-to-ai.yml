@@ -1,0 +1,25 @@
+name: emit github traffic to app insights
+
+on:
+  schedule:
+    # 08:15 UTC daily — matches typical dashboard refresh cadence
+    - cron: '15 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Emit github_traffic customEvent
+        env:
+          # PAT with repo scope for Traffic API. Store as an org/repo secret.
+          GITHUB_TOKEN: ${{ secrets.TRAFFIC_PAT }}
+          REPO: ${{ github.repository }}
+          AI_CONNECTION_STRING: ${{ secrets.AI_CONNECTION_STRING }}
+        run: python scripts/emit_github_traffic.py
