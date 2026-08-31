@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ODBC → ADBC Migration Dashboard</title>
+<style>
+:root {
+  --bg:#faf9f8; --panel:#fff; --ink:#242424; --muted:#605e5c; --line:#edebe9;
+  --brand:#0078d4; --brand-dark:#005a9e; --accent:#8378de;
+  --ok:#107c10; --warn:#f7630c; --err:#a80000; --new:#8a8886;
+  --adbc:#0078d4; --odbc:#8a8886;
+  --track-canary:#0078d4; --track-partnership:#8378de; --track-driver:#f7630c;
+  --track-dep:#a80000; --track-gw:#605e5c;
+}
+* { box-sizing:border-box }
+body { margin:0; font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg); color:var(--ink); font-size:13px; line-height:1.4 }
+[title], [data-tip] { cursor:help }
+.floating-tip {
+  position:fixed; z-index:9999; pointer-events:none;
+  background:#242424; color:#fff;
+  padding:8px 12px; border-radius:4px;
+  font-size:12px; line-height:1.5; font-weight:400;
+  max-width:360px; box-shadow:0 4px 12px rgba(0,0,0,.25);
+  white-space:pre-wrap;
+}
+header { background:linear-gradient(135deg,var(--brand) 0%,var(--accent) 100%); color:#fff; padding:20px 32px }
+header h1 { margin:0; font-size:24px; font-weight:600 }
+header p { margin:6px 0 0; opacity:.92; font-size:13px }
+.meta { margin-top:10px; font-size:12px; opacity:.85 }
+.meta a { color:#fff; text-decoration:underline }
+nav { background:#fff; border-bottom:1px solid var(--line); padding:0 32px; display:flex; gap:0; position:sticky; top:0; z-index:10 }
+nav button { background:none; border:0; padding:14px 20px; cursor:pointer; font-size:13px; font-weight:600; color:var(--muted); border-bottom:3px solid transparent }
+nav button.active { color:var(--brand); border-bottom-color:var(--brand) }
+nav button:hover { background:#f3f2f1 }
+main { padding:24px 32px 60px; max-width:1600px; margin:0 auto }
+.tab { display:none } .tab.active { display:block }
+
+/* Section headers */
+.section-h { display:flex; justify-content:space-between; align-items:baseline; margin:22px 0 10px }
+.section-h h2 { margin:0; font-size:15px; font-weight:600 }
+.section-h .desc { font-size:12px; color:var(--muted) }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; margin-bottom:20px; padding:18px }
+
+/* Per-connector migration table (Tab 1 headline) */
+.conn-migration-tbl { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px }
+.conn-migration-tbl th { text-align:left; padding:10px 12px; background:#f3f2f1; font-weight:600; border-bottom:1px solid var(--line); font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:var(--muted) }
+.conn-migration-tbl th[title] { border-bottom:2px dotted var(--muted); cursor:help }
+.conn-migration-tbl td { padding:12px; border-bottom:1px solid var(--line); vertical-align:middle }
+.conn-migration-tbl tr.conn-row { cursor:pointer; transition:background .1s }
+.conn-migration-tbl tr.conn-row:hover td { background:#f3f9ff }
+.conn-migration-tbl td.chevron { color:var(--muted); font-size:20px; width:20px; text-align:right }
+.conn-name .cn-title { font-size:13px; font-weight:600 }
+.track-mini { display:inline-block; padding:1px 6px; border-radius:3px; font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; color:#fff; margin-top:3px }
+.track-mini.track-canary { background:var(--track-canary) }
+.track-mini.track-partnership { background:var(--track-partnership) }
+.track-mini.track-driver-upgrade { background:var(--track-driver) }
+.track-mini.track-deprecation-only { background:var(--track-dep) }
+.track-mini.track-gateway-only { background:var(--track-gw) }
+.pct-cell .pct-num { font-size:22px; font-weight:600; margin-bottom:4px }
+.pct-cell .pct-bar { width:120px; height:6px; background:#f3f2f1; border-radius:3px; overflow:hidden }
+.pct-cell .pct-fill { height:100%; border-radius:3px }
+.pct-cell .bar-migrated { background:var(--ok) }
+.pct-cell .bar-inflight { background:var(--warn) }
+.pct-cell .bar-notstarted { background:var(--err) }
+.delta-col .delta { font-size:12px; font-weight:600 }
+.delta-col .delta.ok { color:var(--ok) }
+.delta-col .delta.err { color:var(--err) }
+.delta-col .delta.muted { color:var(--muted) }
+.events-col { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums }
+.events-col .q-new { color:var(--brand); font-weight:600 }
+.events-col .q-legacy { color:var(--ink) }
+.buckets-col { font-size:14px; font-weight:600; font-variant-numeric:tabular-nums; min-width:220px }
+.tenant-cell { display:flex; flex-direction:column; gap:4px; min-width:210px }
+.tenant-total { font-size:14px; font-weight:600 }
+.tenant-total .tt-lbl { color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.3px; margin-left:4px }
+.tenant-stack { display:flex; height:10px; border-radius:5px; overflow:hidden; background:#f3f2f1 }
+.tenant-stack .ts-seg { height:100%; transition:width .3s }
+.tenant-stack .ts-m { background:var(--ok) }
+.tenant-stack .ts-i { background:var(--warn) }
+.tenant-stack .ts-n { background:var(--err) }
+.tenant-legend { font-size:11px; font-weight:500; color:var(--muted); font-variant-numeric:tabular-nums }
+.tenant-legend .tl-m { color:var(--ok); font-weight:600 }
+.tenant-legend .tl-i { color:var(--warn); font-weight:600 }
+.tenant-legend .tl-n { color:var(--err); font-weight:600 }
+.phase-col { min-width:150px }
+.phase-cell-inline { font-size:11px }
+.phase-cell-inline .phase-cell-n { color:var(--muted); text-transform:uppercase; letter-spacing:.3px; font-weight:600; font-size:10px }
+.phase-cell-inline .phase-cell-name { font-weight:600; font-size:12px; margin-top:1px }
+.phase-cell-inline .phase-cell-short { color:#333; font-size:11px; margin-top:2px; font-style:italic }
+.phase-cell-inline .phase-cell-date { color:var(--muted); font-size:11px; margin-top:2px }
+.mt-short { font-size:11px; color:#333; margin-top:3px; font-style:italic }
+.ph-short { font-size:10px; color:#333; margin-top:2px; font-style:italic; line-height:1.3 }
+.na { color:var(--muted); font-style:italic; font-size:12px }
+
+/* KPI cards Tab 1 */
+.kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px }
+.kpi-card { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:16px; position:relative }
+.kpi-lbl { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); font-weight:600 }
+.kpi-num { font-size:34px; font-weight:600; margin:6px 0 2px }
+.kpi-sub { font-size:11px; color:var(--muted) }
+.acr-stub { color:var(--muted); font-style:italic; font-size:20px }
+
+/* Master timeline strip */
+.master-timeline { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:8px }
+.mt-phase { padding:12px 14px; border-radius:6px; background:#f8f7f6; border-left:4px solid #ccc }
+.mt-phase.mt-past { border-left-color:var(--err); background:#fde7e9 }
+.mt-phase.mt-active { border-left-color:var(--warn); background:#fff4ce }
+.mt-phase.mt-future { border-left-color:var(--muted); background:#f8f7f6 }
+.mt-n { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; font-weight:600 }
+.mt-name { font-size:13px; font-weight:600; margin-top:2px }
+.mt-date { font-size:11px; color:var(--muted); margin-top:2px }
+.mt-stat { font-size:10px; margin-top:6px; font-weight:600; text-transform:uppercase; letter-spacing:.3px }
+.mt-stat-past { color:var(--err) } .mt-stat-active { color:var(--warn) } .mt-stat-future { color:var(--muted) }
+
+/* Funnel */
+.funnel { display:flex; align-items:center; gap:8px; margin-top:6px }
+.fn-step { flex:1; text-align:center; padding:12px 8px; background:#f8f7f6; border-radius:6px }
+.fn-n { font-size:24px; font-weight:600 }
+.fn-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; margin-top:2px; font-weight:600 }
+.fn-pct { font-size:10px; color:var(--muted); margin-top:2px }
+.fn-arrow { color:var(--muted); font-size:20px; padding:0 4px }
+
+/* Trend chart */
+.trend-svg { width:100%; height:260px; display:block }
+.empty-chart, .empty { padding:24px; text-align:center; color:var(--muted); font-size:12px; font-style:italic }
+
+/* At-risk table */
+.at-risk-tbl { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px }
+.at-risk-tbl th { text-align:left; padding:8px 10px; background:#f3f2f1; font-weight:600; border-bottom:1px solid var(--line) }
+.at-risk-tbl th[title] { border-bottom:2px dotted var(--muted); cursor:help }
+.at-risk-tbl td { padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top }
+.at-risk-tbl td.num { text-align:right; font-variant-numeric:tabular-nums }
+.at-risk-tbl tr:hover td { background:#faf9f8 }
+
+/* Connector cards Tab 2 */
+.conn-card { background:var(--panel); border:1px solid var(--line); border-radius:6px; margin-bottom:16px }
+.conn-head { padding:14px 18px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px }
+.conn-title { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+.conn-title h3 { margin:0; font-size:15px; font-weight:600 }
+.track-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; color:#fff }
+.track-canary { background:var(--track-canary) } .track-partnership { background:var(--track-partnership) }
+.track-driver-upgrade { background:var(--track-driver) } .track-deprecation { background:var(--track-dep) } .track-gateway { background:var(--track-gw) }
+.pill-sample { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; background:#fff4ce; color:#805b00; letter-spacing:.3px; text-transform:uppercase }
+.pill-whole { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; background:#dff6dd; color:#0b6b0b; letter-spacing:.3px; text-transform:uppercase }
+.ado-link { color:var(--brand); text-decoration:none; font-size:12px; font-weight:600 }
+.ado-link:hover { text-decoration:underline }
+.conn-body { padding:16px 18px }
+.kpi-row { grid-template-columns:auto 1fr; margin-bottom:14px }
+.kpi-block { min-width:180px }
+.kpi-val { font-size:28px; font-weight:600 }
+.kpi-val.na { color:var(--muted); font-style:italic }
+.kpi-sub { font-size:11px; color:var(--muted) }
+.card-tenant { min-width:240px; padding-left:18px; border-left:1px solid var(--line) }
+.bkt { font-size:20px; font-weight:600; padding-right:4px }
+.bkt em { font-style:normal; font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.3px; padding-left:4px }
+.bkt-m { color:var(--ok) } .bkt-i { color:var(--warn) } .bkt-n { color:var(--err) }
+
+/* Phase strip */
+.phase-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:14px 0 12px }
+.phase-strip-alt { display:grid; grid-template-columns:1fr; margin:14px 0 12px }
+.phase-strip-alt .phase-cell { max-width:400px }
+.phase-cell { padding:8px 10px; border-radius:4px; background:#f8f7f6; border:1px solid var(--line) }
+.phase-cell.phase-done { background:#dff6dd; border-color:#c4ecc0 }
+.phase-cell.phase-active { background:#fff4ce; border-color:#ffe89b }
+.phase-cell.phase-past { background:#fde7e9; border-color:#f5c8cc }
+.phase-cell.phase-future { background:#f8f7f6 }
+.phase-cell .phase-link { display:block; color:inherit; text-decoration:none }
+.phase-cell .phase-link:hover { text-decoration:underline }
+.ph-num { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; font-weight:600 }
+.ph-name { font-size:12px; font-weight:600; margin-top:2px }
+.ph-date { font-size:11px; color:var(--muted); margin-top:2px }
+.ph-state { font-size:10px; margin-top:2px; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); font-weight:600 }
+
+.doc-line { font-size:12px; color:var(--muted); padding:8px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin:8px 0 12px }
+.doc-line strong { color:var(--ink) }
+
+.top-accounts { margin-top:6px }
+.ta-toolbar { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px }
+.ta-header { font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); font-weight:600 }
+.ta-actions { display:flex; gap:6px }
+.ta-btn { background:#fff; border:1px solid var(--line); color:var(--brand); font-size:11px; font-weight:600; padding:4px 10px; border-radius:4px; cursor:pointer; transition:background .1s }
+.ta-btn:hover { background:#f3f9ff; border-color:var(--brand) }
+.ta-hidden { display:none }
+.ta-table.expanded .ta-hidden { display:table-row }
+.ta-table { width:100%; border-collapse:collapse; font-size:12px }
+.ta-table th { text-align:left; padding:6px 8px; background:#f3f2f1; font-weight:600; border-bottom:1px solid var(--line); font-size:11px }
+.ta-table th[title] { border-bottom:2px dotted var(--muted); cursor:help }
+.ta-table td { padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top }
+.ta-table td.num { text-align:right; font-variant-numeric:tabular-nums }
+.ta-table td.empty { text-align:center; color:var(--muted); font-style:italic; padding:16px 8px }
+.conc-flag { display:inline-block; padding:2px 6px; border-radius:3px; font-size:10px; font-weight:600 }
+.conc-flag.material { background:#fff4ce; color:#805b00 }
+.conc-flag.high { background:#fde7e9; color:var(--err) }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ODBC → ADBC Migration Dashboard</h1>
+  <p>Deprecation timeline · Migration progress · Named-account risk · CSA outreach</p>
+  <div class="meta">
+    Owners: Michaela Isaacs (PM) · David Coe (Eng) · Mailbox: <a href="mailto:adbcmigration@microsoft.com">adbcmigration@microsoft.com</a>
+    · Data as of Aug 28, 2026 10:43 AM · Weekly refresh (moving to cloud-runnable)
+  </div>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="progress">Migration Progress</button>
+  <button class="tab-btn" data-tab="rollout">Connector Rollout</button>
+</nav>
+
+<main>
+
+<!-- ═══════════ TAB 1: MIGRATION PROGRESS (exec) ═══════════ -->
+<section class="tab active" id="tab-progress">
+
+  <div class="section-h">
+    <div>
+      <h2>Migration progress by connector</h2>
+      <div class="desc">Each row = one connector. Ordered by biggest remaining ODBC lever. Click a row to jump to that connector's detail on Tab 2. Aggregate + tenant buckets are whole-connector (all tenants). Top-accounts on Tab 2 use top-500 by ODBC volume.</div>
+    </div>
+  </div>
+
+  <div class="panel" style="padding:0">
+    <table class="conn-migration-tbl">
+      <thead><tr>
+        <th title="Connector name and rollout track. Track colors: blue = Canary (David-managed 5-phase gates), purple = Partnership (partner-timed), orange = Driver upgrade (Simba 1.x to Amazon 2.x, not ADBC), red = Deprecation only (no ADBC path), gray = Gateway-only.">Connector</th>
+        <th title="Migration progress. Calculated as ADBC events / (ADBC + ODBC) events for this connector, 7d rolling window. Bar color: green if &gt;=85%, yellow 20-85%, red &lt;20%. Representative of driver mix — top-500 tenants capture near-all connector query volume.">% on ADBC</th>
+        <th title="Change in % ADBC since the earliest monthly snapshot in data/history/. pp = percentage points. Arrow shows direction of change over the trend window.">Trend</th>
+        <th title="Total ADBC vs ODBC query count across in-scope tenants for this connector, 7d rolling window. 1 query = 1 distinct query execution (dcount ActivityId) from PBI/Fabric Mashup telemetry across PQO + CDSA + Premium + 8 Shared regional clusters. Higher legacy count = more traffic at risk when disable phases land. Cross-cluster dcount is an upper bound; treat as directional.">Queries (7d)</th>
+        <th title="Tenant migration status. Bar segments show proportion Migrated / In-flight / Not started across all tenants with driver activity in the 7d window. Migrated &gt;=85% ADBC, In-flight 20-85%, Not started &lt;20%.">Tenant progress</th>
+        <th title="The next phase gate for this connector that is not yet Closed in ADO. If no phase remains, all done. From David&#x27;s master schedule + ADO overrides.">Next phase gate</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+      
+        <tr class="conn-row" data-anchor="card-Databricks">
+          <td class="conn-name">
+            <div class="cn-title">Databricks</div>
+            <span class="track-mini track-partnership">ODBC → ADBC (partner-timed)</span>
+          </td>
+          <td class="pct-col"><div class="pct-cell"><div class="pct-num">22.51%</div><div class="pct-bar"><div class="pct-fill bar-inflight" style="width:22.51%"></div></div></div></td>
+          <td class="delta-col"><span class="delta ok">↑ +1.4pp</span></td>
+          <td class="events-col"><span class="q-new">7,846,427 ADBC</span> · <span class="q-legacy">27,016,885 ODBC</span></td>
+          <td class="buckets-col"><div class="tenant-cell" title="5,612 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 921 (16%)
+In-flight (20-85% ADBC): 1,741 (31%)
+Not started (&lt;20% ADBC): 2,950 (53%)"><div class="tenant-total">5,612 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:16.411261582323593%"></div><div class="ts-seg ts-i" style="width:31.02280826799715%"></div><div class="ts-seg ts-n" style="width:52.56593014967926%"></div></div><div class="tenant-legend"><span class="tl-m">921 done</span> · <span class="tl-i">1,741 in-flight</span> · <span class="tl-n">2,950 not started</span></div></div></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">Phase 1</div><div class="phase-cell-name">Canary 2</div><div class="phase-cell-short">Testing on friendly customers</div><div class="phase-cell-date">Sep 25, 2026</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+        <tr class="conn-row" data-anchor="card-Snowflake">
+          <td class="conn-name">
+            <div class="cn-title">Snowflake</div>
+            <span class="track-mini track-canary">ODBC → ADBC</span>
+          </td>
+          <td class="pct-col"><div class="pct-cell"><div class="pct-num">47.59%</div><div class="pct-bar"><div class="pct-fill bar-inflight" style="width:47.59%"></div></div></div></td>
+          <td class="delta-col"><span class="delta ok">↑ +5.2pp</span></td>
+          <td class="events-col"><span class="q-new">16,296,712 ADBC</span> · <span class="q-legacy">17,949,010 ODBC</span></td>
+          <td class="buckets-col"><div class="tenant-cell" title="6,833 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 3,430 (50%)
+In-flight (20-85% ADBC): 1,988 (29%)
+Not started (&lt;20% ADBC): 1,415 (21%)"><div class="tenant-total">6,833 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:50.19757061320065%"></div><div class="ts-seg ts-i" style="width:29.094102151324456%"></div><div class="ts-seg ts-n" style="width:20.7083272354749%"></div></div><div class="tenant-legend"><span class="tl-m">3,430 done</span> · <span class="tl-i">1,988 in-flight</span> · <span class="tl-n">1,415 not started</span></div></div></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">Phase 2</div><div class="phase-cell-name">On by default</div><div class="phase-cell-short">ADBC becomes default for all customers</div><div class="phase-cell-date">Oct 30, 2026</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+        <tr class="conn-row" data-anchor="card-GoogleBigQuery">
+          <td class="conn-name">
+            <div class="cn-title">Google BigQuery</div>
+            <span class="track-mini track-canary">ODBC → ADBC</span>
+          </td>
+          <td class="pct-col"><div class="pct-cell"><div class="pct-num">8.95%</div><div class="pct-bar"><div class="pct-fill bar-notstarted" style="width:8.95%"></div></div></div></td>
+          <td class="delta-col"><span class="delta muted">→ +0.2pp</span></td>
+          <td class="events-col"><span class="q-new">1,494,442 ADBC</span> · <span class="q-legacy">15,195,241 ODBC</span></td>
+          <td class="buckets-col"><div class="tenant-cell" title="6,503 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 914 (14%)
+In-flight (20-85% ADBC): 1,143 (18%)
+Not started (&lt;20% ADBC): 4,446 (68%)"><div class="tenant-total">6,503 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:14.05505151468553%"></div><div class="ts-seg ts-i" style="width:17.576503152391204%"></div><div class="ts-seg ts-n" style="width:68.36844533292327%"></div></div><div class="tenant-legend"><span class="tl-m">914 done</span> · <span class="tl-i">1,143 in-flight</span> · <span class="tl-n">4,446 not started</span></div></div></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">Phase 2</div><div class="phase-cell-name">On by default</div><div class="phase-cell-short">ADBC becomes default for all customers</div><div class="phase-cell-date">Oct 30, 2026</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+        <tr class="conn-row" data-anchor="card-AmazonRedshift">
+          <td class="conn-name">
+            <div class="cn-title">Amazon Redshift</div>
+            <span class="track-mini track-driver-upgrade">Simba → 2.x ODBC</span>
+          </td>
+          <td class="pct-col"><div class="pct-cell"><div class="pct-num">1.35%</div><div class="pct-bar"><div class="pct-fill bar-notstarted" style="width:1.35%"></div></div></div></td>
+          <td class="delta-col"><span class="delta muted">→ +0.0pp</span></td>
+          <td class="events-col"><span class="q-new">9,770 2.x</span> · <span class="q-legacy">716,507 1.x (Simba)</span></td>
+          <td class="buckets-col"><div class="tenant-cell" title="781 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 31 (4%)
+In-flight (20-85% ADBC): 8 (1%)
+Not started (&lt;20% ADBC): 742 (95%)"><div class="tenant-total">781 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:3.9692701664532652%"></div><div class="ts-seg ts-i" style="width:1.0243277848911652%"></div><div class="ts-seg ts-n" style="width:95.00640204865557%"></div></div><div class="tenant-legend"><span class="tl-m">31 done</span> · <span class="tl-i">8 in-flight</span> · <span class="tl-n">742 not started</span></div></div></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">Phase 1</div><div class="phase-cell-name">Canary 2</div><div class="phase-cell-short">Testing on friendly customers</div><div class="phase-cell-date">Oct 5, 2026</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+        <tr class="conn-row" data-anchor="card-Dremio">
+          <td class="conn-name">
+            <div class="cn-title">Dremio</div>
+            <span class="track-mini track-partnership">ODBC → ADBC (partner-timed)</span>
+          </td>
+          <td class="pct-col"><div class="pct-cell"><div class="pct-num">0.35%</div><div class="pct-bar"><div class="pct-fill bar-notstarted" style="width:0.35%"></div></div></div></td>
+          <td class="delta-col"><span class="delta muted">→ -0.1pp</span></td>
+          <td class="events-col"><span class="q-new">618 ADBC</span> · <span class="q-legacy">175,302 ODBC</span></td>
+          <td class="buckets-col"><div class="tenant-cell" title="53 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 3 (6%)
+In-flight (20-85% ADBC): 2 (4%)
+Not started (&lt;20% ADBC): 48 (91%)"><div class="tenant-total">53 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:5.660377358490566%"></div><div class="ts-seg ts-i" style="width:3.7735849056603774%"></div><div class="ts-seg ts-n" style="width:90.56603773584905%"></div></div><div class="tenant-legend"><span class="tl-m">3 done</span> · <span class="tl-i">2 in-flight</span> · <span class="tl-n">48 not started</span></div></div></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">Phase 1</div><div class="phase-cell-name">Canary 2</div><div class="phase-cell-short">Testing on friendly customers</div><div class="phase-cell-date">Sep 25, 2026</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+        <tr class="conn-row" data-anchor="card-Spark">
+          <td class="conn-name">
+            <div class="cn-title">Spark / HDInsight Spark</div>
+            <span class="track-mini track-canary">ODBC → ADBC</span>
+          </td>
+          <td class="pct-col"><div class="pct-cell"><div class="pct-num">0.35%</div><div class="pct-bar"><div class="pct-fill bar-notstarted" style="width:0.35%"></div></div></div></td>
+          <td class="delta-col"><span class="delta muted">→ +0.0pp</span></td>
+          <td class="events-col"><span class="q-new">93 ADBC</span> · <span class="q-legacy">26,153 ODBC</span></td>
+          <td class="buckets-col"><div class="tenant-cell" title="57 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 1 (2%)
+In-flight (20-85% ADBC): 0 (0%)
+Not started (&lt;20% ADBC): 56 (98%)"><div class="tenant-total">57 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:1.7543859649122806%"></div><div class="ts-seg ts-n" style="width:98.24561403508773%"></div></div><div class="tenant-legend"><span class="tl-m">1 done</span> · <span class="tl-i">0 in-flight</span> · <span class="tl-n">56 not started</span></div></div></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">Phase 2</div><div class="phase-cell-name">On by default</div><div class="phase-cell-short">ADBC becomes default for all customers</div><div class="phase-cell-date">Oct 30, 2026</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+        <tr class="conn-row" data-anchor="card-GoogleBigQueryAAD">
+          <td class="conn-name">
+            <div class="cn-title">Google BigQuery (Azure AD)</div>
+            <span class="track-mini track-canary">ODBC → ADBC</span>
+          </td>
+          <td class="pct-col"><span class="na">No data</span></td>
+          <td class="delta-col">—</td>
+          <td class="events-col"><span class="na">Kusto pull returns 0 queries — connector may not be in current query, verify with David</span></td>
+          <td class="buckets-col"><span class="na">—</span></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">Phase 2</div><div class="phase-cell-name">On by default</div><div class="phase-cell-short">ADBC becomes default for all customers</div><div class="phase-cell-date">Oct 30, 2026</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+        <tr class="conn-row" data-anchor="card-Impala">
+          <td class="conn-name">
+            <div class="cn-title">Impala</div>
+            <span class="track-mini track-canary">ODBC → ADBC</span>
+          </td>
+          <td class="pct-col"><span class="na">No data</span></td>
+          <td class="delta-col">—</td>
+          <td class="events-col"><span class="na">Kusto pull returns 0 queries — connector may not be in current query, verify with David</span></td>
+          <td class="buckets-col"><span class="na">—</span></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">Phase 2</div><div class="phase-cell-name">On by default</div><div class="phase-cell-short">ADBC becomes default for all customers</div><div class="phase-cell-date">Oct 30, 2026</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+        <tr class="conn-row" data-anchor="card-HiveLLAP">
+          <td class="conn-name">
+            <div class="cn-title">Hive LLAP / HDInsight Interactive Query</div>
+            <span class="track-mini track-deprecation-only">Deprecation (no ADBC path)</span>
+          </td>
+          <td class="pct-col"><span class="na">N/A</span></td>
+          <td class="delta-col">—</td>
+          <td class="events-col"><span class="na">No usage data yet</span></td>
+          <td class="buckets-col"><span class="na">—</span></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">DEPRECATION GATE</div><div class="phase-cell-name">Deprecation</div><div class="phase-cell-short">Retire without ADBC path</div><div class="phase-cell-date">Apr 27, 2027</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+        <tr class="conn-row" data-anchor="card-Vertica">
+          <td class="conn-name">
+            <div class="cn-title">Vertica</div>
+            <span class="track-mini track-gateway-only">Gateway-only (Simba EOL)</span>
+          </td>
+          <td class="pct-col"><span class="na">N/A</span></td>
+          <td class="delta-col">—</td>
+          <td class="events-col"><span class="na">No usage data yet</span></td>
+          <td class="buckets-col"><span class="na">—</span></td>
+          <td class="phase-col"><div class="phase-cell-inline"><div class="phase-cell-n">DEPRECATION GATE</div><div class="phase-cell-name">Gateway-only (Simba EOL)</div><div class="phase-cell-short">Retire via gateway release train</div><div class="phase-cell-date">Aug 31, 2026</div></div></td>
+          <td class="chevron">›</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="section-h" style="margin-top:0">
+      <div><h2>Migration trend by connector</h2><div class="desc">% on ADBC (or 2.x for Redshift) per connector, monthly. Snapshots from data/history/. Hover a legend for last value.</div></div>
+    </div>
+    <svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" class="trend-svg"><line x1="40" y1="220.0" x2="740" y2="220.0" stroke="#edebe9" stroke-width="1"/><text x="34" y="223.0" font-size="10" fill="#605e5c" text-anchor="end">0%</text><line x1="40" y1="170.0" x2="740" y2="170.0" stroke="#edebe9" stroke-width="1"/><text x="34" y="173.0" font-size="10" fill="#605e5c" text-anchor="end">25%</text><line x1="40" y1="120.0" x2="740" y2="120.0" stroke="#edebe9" stroke-width="1"/><text x="34" y="123.0" font-size="10" fill="#605e5c" text-anchor="end">50%</text><line x1="40" y1="70.0" x2="740" y2="70.0" stroke="#edebe9" stroke-width="1"/><text x="34" y="73.0" font-size="10" fill="#605e5c" text-anchor="end">75%</text><line x1="40" y1="20.0" x2="740" y2="20.0" stroke="#edebe9" stroke-width="1"/><text x="34" y="23.0" font-size="10" fill="#605e5c" text-anchor="end">100%</text><line x1="257.8" y1="20" x2="257.8" y2="220" stroke="#f7630c" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/><text x="257.8" y="16" font-size="9" fill="#f7630c" text-anchor="middle" font-weight="600">P1</text><line x1="318.5" y1="20" x2="318.5" y2="220" stroke="#8a8886" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/><text x="318.5" y="16" font-size="9" fill="#8a8886" text-anchor="middle" font-weight="600">P2</text><line x1="662.2" y1="20" x2="662.2" y2="220" stroke="#8a8886" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/><text x="662.2" y="16" font-size="9" fill="#8a8886" text-anchor="middle" font-weight="600">P3</text><line x1="815.2" y1="20" x2="815.2" y2="220" stroke="#8a8886" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/><text x="815.2" y="16" font-size="9" fill="#8a8886" text-anchor="middle" font-weight="600">P4</text><line x1="185.5" y1="20" x2="185.5" y2="220" stroke="#0078d4" stroke-width="2" opacity="0.7"/><text x="185.5" y="250" font-size="10" fill="#0078d4" text-anchor="middle" font-weight="600">Today</text><polyline fill="none" stroke="#0078d4" stroke-width="2" points="40.0,154.2 117.8,143.8"/><polyline fill="none" stroke="#f74a4a" stroke-width="2" points="40.0,189.6 117.8,186.8"/><polyline fill="none" stroke="#f9ab00" stroke-width="2" points="40.0,211.6 117.8,211.2"/><polyline fill="none" stroke="#8378de" stroke-width="2" points="40.0,219.8 117.8,219.8"/><polyline fill="none" stroke="#e3008c" stroke-width="2" points="40.0,220.0 117.8,220.0"/><polyline fill="none" stroke="#00b7c3" stroke-width="2" points="40.0,219.2 117.8,219.4"/><text x="40.0" y="234" font-size="10" fill="#605e5c" text-anchor="middle">2026-07</text><text x="273.3" y="234" font-size="10" fill="#605e5c" text-anchor="middle">2026-10</text><text x="506.7" y="234" font-size="10" fill="#605e5c" text-anchor="middle">2027-01</text><text x="740.0" y="234" font-size="10" fill="#605e5c" text-anchor="middle">2027-04</text><line x1="748" y1="24" x2="762" y2="24" stroke="#0078d4" stroke-width="2"/><text x="766" y="27" font-size="10" fill="#242424">Snowflake (38%)</text><line x1="748" y1="40" x2="762" y2="40" stroke="#f74a4a" stroke-width="2"/><text x="766" y="43" font-size="10" fill="#242424">Databricks (17%)</text><line x1="748" y1="56" x2="762" y2="56" stroke="#f9ab00" stroke-width="2"/><text x="766" y="59" font-size="10" fill="#242424">Google BigQuery (4%)</text><line x1="748" y1="72" x2="762" y2="72" stroke="#8378de" stroke-width="2"/><text x="766" y="75" font-size="10" fill="#242424">Amazon Redshift (0%)</text><line x1="748" y1="88" x2="762" y2="88" stroke="#e3008c" stroke-width="2"/><text x="766" y="91" font-size="10" fill="#242424">Spark / HDInsight Sp… (0%)</text><line x1="748" y1="104" x2="762" y2="104" stroke="#00b7c3" stroke-width="2"/><text x="766" y="107" font-size="10" fill="#242424">Dremio (0%)</text><text x="748" y="131" font-size="10" fill="#605e5c" font-weight="600">Phase gates:</text><text x="748" y="145" font-size="9" fill="#605e5c">P1: Canary 2 (Sep 2026)</text><text x="748" y="157" font-size="9" fill="#605e5c">P2: On by default (Oct 2026)</text><text x="748" y="169" font-size="9" fill="#605e5c">P3: Disable in Service (Mar 2027)</text><text x="748" y="181" font-size="9" fill="#605e5c">P4: Remove from Desktop/Gateway (Apr 2027)</text></svg>
+  </div>
+
+  <div class="section-h">
+    <div><h2>Where are we in pushing migration?</h2><div class="desc">CSA outreach funnel — proof there is a workstream on each named account.</div></div>
+  </div>
+
+  <div class="panel">
+    
+      <div class="funnel">
+        <div class="fn-step">
+          <div class="fn-n" title="Unique CSA / TAM recipients across Wave A + Wave B email sends. From wave_a_bcc.csv + wave_b_bcc.csv.">630</div>
+          <div class="fn-lbl">Contacted</div>
+        </div>
+        <div class="fn-arrow">→</div>
+        <div class="fn-step">
+          <div class="fn-n" title="Unique CSA / TAM senders who replied to any Wave A/B thread (scanned 2026-08-27T19:48:58.144454Z). Matched by sender email against the contacted set.">41</div>
+          <div class="fn-lbl">Replied</div>
+          <div class="fn-pct">6.5%</div>
+        </div>
+      </div>
+    
+  </div>
+
+</section>
+
+<!-- ═══════════ TAB 2: CONNECTOR ROLLOUT (PM) ═══════════ -->
+<section class="tab" id="tab-rollout">
+
+  <div class="section-h">
+    <div><h2>Per-connector rollout status</h2>
+      <div class="desc">One card per connector. Ordered by biggest remaining ODBC volume. Every card carries its own 5-phase timeline, top-N tenant sample, and doc coverage.</div>
+    </div>
+  </div>
+
+  
+<div class="conn-card" id="card-Databricks">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Databricks</h3>
+      <span class="track-pill track-partnership" title="Partnership-managed rollout — timing coordinated with Databricks. ADBC GA landed July 2026.">ODBC → ADBC (partner-timed)</span>
+      <span class="pill-whole" title="Whole-connector aggregate: totals + tenant buckets computed across ALL tenants that showed activity in the 7d query window, pre-truncation. Top-accounts section below is drawn from top-500 by ODBC volume.">whole-connector</span>
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2195738" target="_blank">ADO #2195738 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val" title="Percent of query volume on ADBC. Calculated as ADBC events / (ADBC + ODBC events) across in-scope tenants for this connector, 7d rolling window. Representative of driver mix - top-500 tenants capture near-all connector query volume.">22.51%</div><div class="kpi-sub">% on ADBC · 7,846,427 ADBC vs 27,016,885 ODBC events (7d)</div>
+      </div>
+      <div class="tenant-cell card-tenant" title="5,612 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 921 (16%)
+In-flight (20-85% ADBC): 1,741 (31%)
+Not started (&lt;20% ADBC): 2,950 (53%)"><div class="tenant-total">5,612 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:16.411261582323593%"></div><div class="ts-seg ts-i" style="width:31.02280826799715%"></div><div class="ts-seg ts-n" style="width:52.56593014967926%"></div></div><div class="tenant-legend"><span class="tl-m">921 done</span> · <span class="tl-i">1,741 in-flight</span> · <span class="tl-n">2,950 not started</span></div></div>
+    </div>
+    <div class="phase-strip"><div class="phase-cell phase-active" title="Phase 1 — Canary 2
+Target: Sep 25, 2026
+State: Not yet in ADO
+
+Canary 2 flight enabled — a small % of traffic served by ADBC.
+
+ADO item not yet created - target date from David&#x27;s master schedule."><div class="phase-link"><div class="ph-num">Phase 1</div><div class="ph-name">Canary 2</div><div class="ph-short">Testing on friendly customers</div><div class="ph-date">Sep 25, 2026</div><div class="ph-state">Not in ADO</div></div></div><div class="phase-cell phase-future" title="Phase 2 — On by default
+Target: Oct 19, 2026
+State: Not yet in ADO
+
+ADBC on-by-default rollout complete — 100% of traffic served by ADBC unless customer opted out.
+
+ADO item not yet created - target date from David&#x27;s master schedule."><div class="phase-link"><div class="ph-num">Phase 2</div><div class="ph-name">On by default</div><div class="ph-short">ADBC becomes default for all customers</div><div class="ph-date">Oct 19, 2026</div><div class="ph-state">Not in ADO</div></div></div><div class="phase-cell phase-future" title="Phase 3 — Disable in Service
+Target: Mar 01, 2027
+State: Not yet in ADO
+
+ODBC disabled at 100% in Service — customers still on ODBC will break unless migrated.
+
+ADO item not yet created - target date from David&#x27;s master schedule."><div class="phase-link"><div class="ph-num">Phase 3</div><div class="ph-name">Disable in Service</div><div class="ph-short">ODBC turned off in Fabric/PBI Service</div><div class="ph-date">Mar 01, 2027</div><div class="ph-state">Not in ADO</div></div></div><div class="phase-cell phase-future" title="Phase 4 — Remove from Desktop/Gateway
+Target: Apr 30, 2027
+State: Not yet in ADO
+
+Last Desktop and Gateway release with Simba drivers. After this, ODBC no longer available in newly-installed clients.
+
+ADO item not yet created - target date from David&#x27;s master schedule."><div class="phase-link"><div class="ph-num">Phase 4</div><div class="ph-name">Remove from Desktop/Gateway</div><div class="ph-short">Last release with old driver</div><div class="ph-date">Apr 30, 2027</div><div class="ph-state">Not in ADO</div></div></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>309</strong> docs mention · <strong>17</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="Databricks" data-connector-display="Databricks">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-Databricks">Expand all (50)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-Databricks" data-filename="top-accounts-Databricks.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-Databricks"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">2,372,637</td><td class="num">0%</td></tr><tr><td>Go-Ahead Group</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>9</td><td>Tracy Gillespie</td><td class="num">1,563,393</td><td class="num">5%</td></tr><tr><td>Adidas AG</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>378</td><td>Sandra Michael</td><td class="num">999,454</td><td class="num">2%</td></tr><tr><td>ONETRUST</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>14</td><td>Jay Dimri</td><td class="num">815,290</td><td class="num">0%</td></tr><tr><td>AB InBev</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>320</td><td>Sunil Bindagi</td><td class="num">745,120</td><td class="num">6%</td></tr><tr><td>Takeda Pharmaceutical</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>617</td><td>Yang Hai</td><td class="num">558,301</td><td class="num">7%</td></tr><tr><td>Mercedes-Benz Group AG</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>6,888</td><td>Zoltan Somogyi</td><td class="num">551,292</td><td class="num">16%</td></tr><tr><td>Charoen Pokphand Group (CP Group)</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>53</td><td>Suthinan Aiemsamai</td><td class="num">531,820</td><td class="num">30%</td></tr><tr><td>WEGMANS FOOD MARKETS INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>4,141</td><td>Ricky Kharawala</td><td class="num">482,252</td><td class="num">9%</td></tr><tr><td>QUARTILE DIGITAL</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>7</td><td>—</td><td class="num">350,177</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>AUSTRALIAN RED CROSS LIFEBLOOD</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>208</td><td>Brayden Leckie</td><td class="num">344,311</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>HAVI GROUP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>150</td><td>Shannon Saliga</td><td class="num">312,243</td><td class="num">2%</td></tr><tr class="ta-hidden"><td>LOGAN ALUMINUM INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>103</td><td>—</td><td class="num">287,210</td><td class="num">2%</td></tr><tr class="ta-hidden"><td>SKINKANDY AUSTRALIA PTY LTD</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>—</td><td class="num">257,381</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>GENERAL MOTORS CORPORATION</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>3,571</td><td>Smitha Mohan</td><td class="num">256,685</td><td class="num">27%</td></tr><tr class="ta-hidden"><td>STMICROELECTRONICS</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>59</td><td>Sanchita Arora</td><td class="num">246,283</td><td class="num">4%</td></tr><tr class="ta-hidden"><td>Viessmann Climate Solutions SE</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>189</td><td>Andreas Albert</td><td class="num">245,844</td><td class="num">9%</td></tr><tr class="ta-hidden"><td>MATTAMY HOMES</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>25</td><td>Susan Mendez Leiton</td><td class="num">239,397</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>SVS VISION</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>7</td><td>—</td><td class="num">238,353</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>MICHELIN</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>382</td><td>Mariama Conte</td><td class="num">236,316</td><td class="num">59%</td></tr><tr class="ta-hidden"><td>MC DONALDS CORPORATION</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>409</td><td>Steve Weber</td><td class="num">223,642</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>ESTEE LAUDER</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>254</td><td>Uma Ananta Tendulkar</td><td class="num">219,953</td><td class="num">1%</td></tr><tr class="ta-hidden"><td>PROCTER &amp; GAMBLE COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>955</td><td>Todd Bowman</td><td class="num">219,764</td><td class="num">29%</td></tr><tr class="ta-hidden"><td>Federal Express Corporation</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>301</td><td>Raul Montes</td><td class="num">217,409</td><td class="num">67%</td></tr><tr class="ta-hidden"><td>Department for Education</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>19</td><td>Rob Gorman</td><td class="num">210,307</td><td class="num">4%</td></tr><tr class="ta-hidden"><td>Unilever</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>244</td><td>Ric Harris</td><td class="num">203,888</td><td class="num">28%</td></tr><tr class="ta-hidden"><td>ROYAL CARIBBEAN CRUISE LINE RCCL</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>439</td><td>Kris Young</td><td class="num">163,071</td><td class="num">38%</td></tr><tr class="ta-hidden"><td>Nestec SA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1,263</td><td>Xavier Fantin</td><td class="num">162,974</td><td class="num">3%</td></tr><tr class="ta-hidden"><td>WEST TELESERVICES CORPORATION</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>Robyn Thelander</td><td class="num">160,147</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>LEGO Group</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>251</td><td>Pia Moser</td><td class="num">156,330</td><td class="num">20%</td></tr><tr class="ta-hidden"><td>PERCASSI SPA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>167</td><td>Laura Di Chiacchio</td><td class="num">152,697</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Pattern Energy Group LP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>6</td><td>Sveta Mapes</td><td class="num">145,912</td><td class="num">1%</td></tr><tr class="ta-hidden"><td>ISKRAEMECO d.d.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">144,647</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>CNAF</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>7</td><td>Frédéric Jouin</td><td class="num">142,519</td><td class="num">27%</td></tr><tr class="ta-hidden"><td>EUROCASH SA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>15</td><td>Irek Kobus</td><td class="num">142,049</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>ARTHREX</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>686</td><td>Tim Cummings</td><td class="num">140,878</td><td class="num">8%</td></tr><tr class="ta-hidden"><td>Databricks, Inc.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>47</td><td>James Applegate</td><td class="num">139,389</td><td class="num">47%</td></tr><tr class="ta-hidden"><td>Speira GmbH</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>28</td><td>—</td><td class="num">136,891</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Azzas 2154</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>—</td><td class="num">136,554</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">135,458</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Ecopetrol S.A.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>406</td><td>Lorena Pareja</td><td class="num">131,667</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>COLUMBIA SPORTSWEAR</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>27</td><td>Melissa FanJiang</td><td class="num">130,304</td><td class="num">1%</td></tr><tr class="ta-hidden"><td>Royal Dutch Shell Global Parent</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>4,896</td><td>Volkert Sauerwein</td><td class="num">119,826</td><td class="num">56%</td></tr><tr class="ta-hidden"><td>EY Global Services Limited</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2,568</td><td>William Sun</td><td class="num">118,842</td><td class="num">11%</td></tr><tr class="ta-hidden"><td>DEERE COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>649</td><td>Robin Craig</td><td class="num">117,522</td><td class="num">27%</td></tr><tr class="ta-hidden"><td>Komplett ASA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>19</td><td>—</td><td class="num">114,584</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Heineken</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>521</td><td>Rob Roggeveen</td><td class="num">110,094</td><td class="num">12%</td></tr><tr class="ta-hidden"><td>Cummins Inc</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>262</td><td>Tami Lemar</td><td class="num">109,960</td><td class="num">22%</td></tr><tr class="ta-hidden"><td>Sandvik Ab</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>293</td><td>Sara Frylén Jirving</td><td class="num">109,090</td><td class="num">4%</td></tr><tr class="ta-hidden"><td>SCANDINAVIAN AIRLINES SYSTEM (SAS)</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>201</td><td>Mikael Colliander</td><td class="num">108,608</td><td class="num">0%</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="conn-card" id="card-Snowflake">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Snowflake</h3>
+      <span class="track-pill track-canary" title="Canary track — ODBC → ADBC.">ODBC → ADBC</span>
+      <span class="pill-whole" title="Whole-connector aggregate: totals + tenant buckets computed across ALL tenants that showed activity in the 7d query window, pre-truncation. Top-accounts section below is drawn from top-500 by ODBC volume.">whole-connector</span>
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194052" target="_blank">ADO #2194052 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val" title="Percent of query volume on ADBC. Calculated as ADBC events / (ADBC + ODBC events) across in-scope tenants for this connector, 7d rolling window. Representative of driver mix - top-500 tenants capture near-all connector query volume.">47.59%</div><div class="kpi-sub">% on ADBC · 16,296,712 ADBC vs 17,949,010 ODBC events (7d)</div>
+      </div>
+      <div class="tenant-cell card-tenant" title="6,833 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 3,430 (50%)
+In-flight (20-85% ADBC): 1,988 (29%)
+Not started (&lt;20% ADBC): 1,415 (21%)"><div class="tenant-total">6,833 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:50.19757061320065%"></div><div class="ts-seg ts-i" style="width:29.094102151324456%"></div><div class="ts-seg ts-n" style="width:20.7083272354749%"></div></div><div class="tenant-legend"><span class="tl-m">3,430 done</span> · <span class="tl-i">1,988 in-flight</span> · <span class="tl-n">1,415 not started</span></div></div>
+    </div>
+    <div class="phase-strip"><div class="phase-cell phase-done" title="Phase 1 — Canary 2
+Target: Sep 21, 2026
+State: Closed
+
+Canary 2 flight enabled — a small % of traffic served by ADBC.
+
+ADO item: 2194070"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194070" target="_blank"><div class="ph-num">Phase 1</div><div class="ph-name">Canary 2</div><div class="ph-short">Testing on friendly customers</div><div class="ph-date">Sep 21, 2026</div><div class="ph-state">Closed</div></a></div><div class="phase-cell phase-future" title="Phase 2 — On by default
+Target: Oct 30, 2026
+State: New
+
+ADBC on-by-default rollout complete — 100% of traffic served by ADBC unless customer opted out.
+
+ADO item: 2194071"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194071" target="_blank"><div class="ph-num">Phase 2</div><div class="ph-name">On by default</div><div class="ph-short">ADBC becomes default for all customers</div><div class="ph-date">Oct 30, 2026</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 3 — Disable in Service
+Target: Mar 01, 2027
+State: New
+
+ODBC disabled at 100% in Service — customers still on ODBC will break unless migrated.
+
+ADO item: 2194072"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194072" target="_blank"><div class="ph-num">Phase 3</div><div class="ph-name">Disable in Service</div><div class="ph-short">ODBC turned off in Fabric/PBI Service</div><div class="ph-date">Mar 01, 2027</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 4 — Remove from Desktop/Gateway
+Target: Mar 10, 2027
+State: New
+
+Last Desktop and Gateway release with Simba drivers. After this, ODBC no longer available in newly-installed clients.
+
+ADO item: 2194074"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194074" target="_blank"><div class="ph-num">Phase 4</div><div class="ph-name">Remove from Desktop/Gateway</div><div class="ph-short">Last release with old driver</div><div class="ph-date">Mar 10, 2027</div><div class="ph-state">New</div></a></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>205</strong> docs mention · <strong>14</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="Snowflake" data-connector-display="Snowflake">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-Snowflake">Expand all (50)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-Snowflake" data-filename="top-accounts-Snowflake.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-Snowflake"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td>TIENDAS SORIANA S.A. de C.V.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>15</td><td>Maria Calcines</td><td class="num">1,775,694</td><td class="num">0%</td></tr><tr><td>BASS PRO SHOPS OUTDOOR WORLD</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>354</td><td>Sonia Gallegos</td><td class="num">736,920</td><td class="num">1%</td></tr><tr><td>Department of Health WA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>554</td><td>Troy Wainwright</td><td class="num">700,555</td><td class="num">25%</td></tr><tr><td>COCA COLA COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>78</td><td>Neil Kent</td><td class="num">623,249</td><td class="num">16%</td></tr><tr><td>Nestec SA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1,263</td><td>Xavier Fantin</td><td class="num">620,692</td><td class="num">15%</td></tr><tr><td>TJX COMPANIES INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>51</td><td>Scott Grode</td><td class="num">534,913</td><td class="num">1%</td></tr><tr><td>HERMES SELLIER</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>34</td><td>Thardsajini Satkunarajah</td><td class="num">506,770</td><td class="num">3%</td></tr><tr><td>Accident Compensation Corporation</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>9</td><td>Rhian Theaker</td><td class="num">406,734</td><td class="num">13%</td></tr><tr><td>富士フイルムホールディングス株式会社</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>419</td><td>Yuya Nishizawa</td><td class="num">376,487</td><td class="num">5%</td></tr><tr><td>COLES SUPERMARKETS AUSTRALIA PTY LT</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>51</td><td>Paul Burden</td><td class="num">278,349</td><td class="num">23%</td></tr><tr class="ta-hidden"><td>GRUPO BARCELO</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>18</td><td>Heloisa Sorato</td><td class="num">272,252</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>sok</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>90</td><td>Tony Mikkola</td><td class="num">249,283</td><td class="num">1%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">227,593</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Deutsche Post DHL</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2,910</td><td>Stefan Seitz</td><td class="num">226,170</td><td class="num">60%</td></tr><tr class="ta-hidden"><td>CATERPILLAR</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2,224</td><td>Zein Aldogom</td><td class="num">223,108</td><td class="num">44%</td></tr><tr class="ta-hidden"><td>Galaxy US Opco Inc. d/b/a Vialto Partners</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>6</td><td>—</td><td class="num">195,981</td><td class="num">2%</td></tr><tr class="ta-hidden"><td>Inovalon Inc</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>85</td><td>James Heatley</td><td class="num">189,950</td><td class="num">1%</td></tr><tr class="ta-hidden"><td>FUNDO 10b</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>14</td><td>Luiz Fernando Gumiero</td><td class="num">188,038</td><td class="num">80%</td></tr><tr class="ta-hidden"><td>Inditex S.A.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>105</td><td>Pablo Molano Villar</td><td class="num">175,214</td><td class="num">46%</td></tr><tr class="ta-hidden"><td>NETAPP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>197</td><td>Victor de Souza</td><td class="num">173,530</td><td class="num">39%</td></tr><tr class="ta-hidden"><td>C &amp; S WHOLESALE GROCERS INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>27</td><td>—</td><td class="num">172,263</td><td class="num">8%</td></tr><tr class="ta-hidden"><td>Exxon Mobil</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>5,877</td><td>Zoltan Somogyi</td><td class="num">156,619</td><td class="num">79%</td></tr><tr class="ta-hidden"><td>Volkswagen AG Germany</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>102</td><td>Will Garvin</td><td class="num">151,793</td><td class="num">25%</td></tr><tr class="ta-hidden"><td>MSCI INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>81</td><td>Donna Radovich</td><td class="num">147,983</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>浙江吉利控股集团有限公司</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>195</td><td>Yuan Gao</td><td class="num">145,494</td><td class="num">74%</td></tr><tr class="ta-hidden"><td>Brinks</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>149</td><td>Raul Montes</td><td class="num">131,146</td><td class="num">2%</td></tr><tr class="ta-hidden"><td>MILAN LASER</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>—</td><td class="num">130,218</td><td class="num">1%</td></tr><tr class="ta-hidden"><td>kla-tencor</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>132</td><td>Vincent Shen</td><td class="num">127,902</td><td class="num">5%</td></tr><tr class="ta-hidden"><td>ABERCROMBIE &amp; FITCH</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>319</td><td>Mindy McDaniel</td><td class="num">125,552</td><td class="num">1%</td></tr><tr class="ta-hidden"><td>GALERIA Karstadt Kaufhof GmbH</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>Tobias Hakansson</td><td class="num">119,328</td><td class="num">8%</td></tr><tr class="ta-hidden"><td>PERFORMANCE FOOD GROUP PFG</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>28</td><td>John Sadovszky</td><td class="num">117,757</td><td class="num">7%</td></tr><tr class="ta-hidden"><td>LOREAL</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>336</td><td>Tami Lemar</td><td class="num">113,044</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Currys</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>13</td><td>Thomas Sourour</td><td class="num">110,370</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>COCA COLA COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>886</td><td>Neil Kent</td><td class="num">106,741</td><td class="num">8%</td></tr><tr class="ta-hidden"><td>MARVIN DOORS AND WINDOWS</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>Shiana Ferng</td><td class="num">100,648</td><td class="num">1%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">98,291</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>FCC BEHAVIORAL HEALTH</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>10</td><td>—</td><td class="num">97,438</td><td class="num">3%</td></tr><tr class="ta-hidden"><td>WESFARMERS GROUP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>32</td><td>Wayne Clarke</td><td class="num">85,306</td><td class="num">61%</td></tr><tr class="ta-hidden"><td>AB SKF</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>582</td><td>Stefan Hillgard</td><td class="num">83,899</td><td class="num">16%</td></tr><tr class="ta-hidden"><td>CVS HEALTH</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>3,008</td><td>Yanzhong Liang</td><td class="num">81,640</td><td class="num">45%</td></tr><tr class="ta-hidden"><td>Philip Morris International Management SA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>345</td><td>Marcus Carvalho</td><td class="num">80,475</td><td class="num">26%</td></tr><tr class="ta-hidden"><td>Hero MotoCorp</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>19</td><td>Ravinder Makkar</td><td class="num">80,101</td><td class="num">82%</td></tr><tr class="ta-hidden"><td>GIA GEMOLOGICAL INST OF AMERICA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>4</td><td>Tami Lemar</td><td class="num">79,910</td><td class="num">1%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">79,832</td><td class="num">3%</td></tr><tr class="ta-hidden"><td>MSPM Azure primary subscription</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>—</td><td class="num">75,238</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>KIMBERLY CLARK CORPORATION</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>928</td><td>Suthinan Aiemsamai</td><td class="num">73,159</td><td class="num">74%</td></tr><tr class="ta-hidden"><td>ANDERSEN CORPORATION</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>77</td><td>Steve Scherweit</td><td class="num">73,129</td><td class="num">2%</td></tr><tr class="ta-hidden"><td>Scandic Hotels AB</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>Helena Dahlberg</td><td class="num">72,801</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>SUNSTRONG MANAGEMENT</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>11</td><td>—</td><td class="num">67,540</td><td class="num">6%</td></tr><tr class="ta-hidden"><td>CALLAWAY GOLF COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>47</td><td>Troy Charleston</td><td class="num">66,667</td><td class="num">28%</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="conn-card" id="card-GoogleBigQuery">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Google BigQuery</h3>
+      <span class="track-pill track-canary" title="Canary track — ODBC → ADBC.">ODBC → ADBC</span>
+      <span class="pill-whole" title="Whole-connector aggregate: totals + tenant buckets computed across ALL tenants that showed activity in the 7d query window, pre-truncation. Top-accounts section below is drawn from top-500 by ODBC volume.">whole-connector</span>
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194055" target="_blank">ADO #2194055 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val" title="Percent of query volume on ADBC. Calculated as ADBC events / (ADBC + ODBC events) across in-scope tenants for this connector, 7d rolling window. Representative of driver mix - top-500 tenants capture near-all connector query volume.">8.95%</div><div class="kpi-sub">% on ADBC · 1,494,442 ADBC vs 15,195,241 ODBC events (7d)</div>
+      </div>
+      <div class="tenant-cell card-tenant" title="6,503 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 914 (14%)
+In-flight (20-85% ADBC): 1,143 (18%)
+Not started (&lt;20% ADBC): 4,446 (68%)"><div class="tenant-total">6,503 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:14.05505151468553%"></div><div class="ts-seg ts-i" style="width:17.576503152391204%"></div><div class="ts-seg ts-n" style="width:68.36844533292327%"></div></div><div class="tenant-legend"><span class="tl-m">914 done</span> · <span class="tl-i">1,143 in-flight</span> · <span class="tl-n">4,446 not started</span></div></div>
+    </div>
+    <div class="phase-strip"><div class="phase-cell phase-done" title="Phase 1 — Canary 2
+Target: Aug 01, 2025
+State: Closed
+
+Canary 2 flight enabled — a small % of traffic served by ADBC.
+
+ADO item: 2033177"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2033177" target="_blank"><div class="ph-num">Phase 1</div><div class="ph-name">Canary 2</div><div class="ph-short">Testing on friendly customers</div><div class="ph-date">Aug 01, 2025</div><div class="ph-state">Closed</div></a></div><div class="phase-cell phase-future" title="Phase 2 — On by default
+Target: Oct 30, 2026
+State: New
+
+ADBC on-by-default rollout complete — 100% of traffic served by ADBC unless customer opted out.
+
+ADO item: 2194081"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194081" target="_blank"><div class="ph-num">Phase 2</div><div class="ph-name">On by default</div><div class="ph-short">ADBC becomes default for all customers</div><div class="ph-date">Oct 30, 2026</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 3 — Disable in Service
+Target: Mar 01, 2027
+State: New
+
+ODBC disabled at 100% in Service — customers still on ODBC will break unless migrated.
+
+ADO item: 2194082"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194082" target="_blank"><div class="ph-num">Phase 3</div><div class="ph-name">Disable in Service</div><div class="ph-short">ODBC turned off in Fabric/PBI Service</div><div class="ph-date">Mar 01, 2027</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 4 — Remove from Desktop/Gateway
+Target: Mar 10, 2027
+State: New
+
+Last Desktop and Gateway release with Simba drivers. After this, ODBC no longer available in newly-installed clients.
+
+ADO item: 2194084"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194084" target="_blank"><div class="ph-num">Phase 4</div><div class="ph-name">Remove from Desktop/Gateway</div><div class="ph-short">Last release with old driver</div><div class="ph-date">Mar 10, 2027</div><div class="ph-state">New</div></a></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>0</strong> docs mention · <strong>0</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="GoogleBigQuery" data-connector-display="Google BigQuery">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-GoogleBigQuery">Expand all (50)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-GoogleBigQuery" data-filename="top-accounts-GoogleBigQuery.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-GoogleBigQuery"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td>DB - MEDICINA DIAGNOSTICA LTDA.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>3</td><td>—</td><td class="num">3,127,763</td><td class="num">0%</td></tr><tr><td>LOREAL</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>336</td><td>Tami Lemar</td><td class="num">1,519,987</td><td class="num">1%</td></tr><tr><td>IKEA GROUP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>7,237</td><td>Mikael Colliander</td><td class="num">1,261,847</td><td class="num">0%</td></tr><tr><td>Roshn Real estate</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>10</td><td>Khadijah Altaib</td><td class="num">579,355</td><td class="num">0%</td></tr><tr><td>Lush BI</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">343,165</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">319,880</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">288,168</td><td class="num">0%</td></tr><tr><td>E. BREUNINGER GMBH &amp; CO.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>125</td><td>Anna Sommerfeldt</td><td class="num">213,682</td><td class="num">0%</td></tr><tr><td>ZEBRA TECHNOLOGIES</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>104</td><td>YiTing Quek</td><td class="num">192,351</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">183,516</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">174,166</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">139,954</td><td class="num">27%</td></tr><tr class="ta-hidden"><td>Kementerian Pendidikan Malaysia</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">138,779</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">130,802</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>ULTA INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>50</td><td>Scott Evans</td><td class="num">127,893</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>ERK PAZARLAMA VE GİYİM SAN. A.Ş.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>14</td><td>Ayse Tartan</td><td class="num">127,767</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>TYSON FOODS INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>236</td><td>Rob Hoch</td><td class="num">122,120</td><td class="num">3%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">120,438</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">117,404</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>MANITOU BF</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>7</td><td>—</td><td class="num">101,179</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>GRUPO SBF COMÉRCIO DE MATERIAIS ESPORTIVOS LTDA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>11</td><td>—</td><td class="num">95,959</td><td class="num">2%</td></tr><tr class="ta-hidden"><td>sisutech.ee</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>9</td><td>—</td><td class="num">89,291</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>COCA COLA COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>130</td><td>Neil Kent</td><td class="num">87,446</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">81,530</td><td class="num">32%</td></tr><tr class="ta-hidden"><td>MULLIEZ GROUP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1,419</td><td>Pierre-Michel Imbern</td><td class="num">74,036</td><td class="num">1%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">68,512</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>J B HUNT TRANSPORT INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1,043</td><td>Kim Cowan</td><td class="num">68,490</td><td class="num">6%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">66,870</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">66,079</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>LABORATORIOS PISA S.A. de C.V.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>304</td><td>—</td><td class="num">64,468</td><td class="num">4%</td></tr><tr class="ta-hidden"><td>WPP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>312</td><td>Nan Yang</td><td class="num">63,903</td><td class="num">2%</td></tr><tr class="ta-hidden"><td>The Ardonagh Group</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>69</td><td>Laura Born Navarro</td><td class="num">63,606</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>meermetdata.nl</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">61,246</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Public Investment Fund</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>8</td><td>Seba AlHadhir</td><td class="num">61,210</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>PEPKOR LTD</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>170</td><td>Sholin Haripersad</td><td class="num">60,502</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">59,929</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Coop Norge AS</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>39</td><td>Thomas Sourour</td><td class="num">56,564</td><td class="num">1%</td></tr><tr class="ta-hidden"><td>orange</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>305</td><td>—</td><td class="num">56,372</td><td class="num">14%</td></tr><tr class="ta-hidden"><td>TELEFONAB LM ERICSSON</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>597</td><td>Rafat Yacoub</td><td class="num">55,468</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">54,053</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Edda Analytics AS</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">53,402</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Spins LLC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>37</td><td>—</td><td class="num">51,248</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>CREATIVE AUTOMATION</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">50,380</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>CROWN ENTERTAINMENT GROUP HOLDINGS PTY LTD</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>Stacey Macfie</td><td class="num">48,278</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Target</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>321</td><td>Tom Fisher</td><td class="num">47,120</td><td class="num">30%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">44,791</td><td class="num">2%</td></tr><tr class="ta-hidden"><td>VEOLIA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>286</td><td>Vincent Sejourne</td><td class="num">43,984</td><td class="num">1%</td></tr><tr class="ta-hidden"><td>Maus Frères SA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>101</td><td>Nancy Bannerman</td><td class="num">43,128</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">40,974</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Deutsche Post DHL</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2,910</td><td>Stefan Seitz</td><td class="num">39,384</td><td class="num">2%</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="conn-card" id="card-AmazonRedshift">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Amazon Redshift</h3>
+      <span class="track-pill track-driver-upgrade" title="Driver upgrade — Simba ODBC → Amazon 2.x ODBC (not ADBC). Amazon does not ship an ADBC driver.">Simba → 2.x ODBC</span>
+      <span class="pill-whole" title="Whole-connector aggregate: totals + tenant buckets computed across ALL tenants that showed activity in the 7d query window, pre-truncation. Top-accounts section below is drawn from top-500 by ODBC volume.">whole-connector</span>
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194057" target="_blank">ADO #2194057 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val" title="Percent of query volume that has migrated from Simba ODBC to Amazon 2.x ODBC. Calculated as 2.x events / (2.x + 1.x events) across in-scope tenants for this connector, 7d rolling window. Not an ADBC migration - Amazon does not ship an ADBC driver. Representative of driver mix - top-500 tenants capture near-all connector query volume.">1.35%</div><div class="kpi-sub">% on 2.x · 9,770 2.x vs 716,507 1.x (Simba) events (7d)</div>
+      </div>
+      <div class="tenant-cell card-tenant" title="781 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 31 (4%)
+In-flight (20-85% ADBC): 8 (1%)
+Not started (&lt;20% ADBC): 742 (95%)"><div class="tenant-total">781 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:3.9692701664532652%"></div><div class="ts-seg ts-i" style="width:1.0243277848911652%"></div><div class="ts-seg ts-n" style="width:95.00640204865557%"></div></div><div class="tenant-legend"><span class="tl-m">31 done</span> · <span class="tl-i">8 in-flight</span> · <span class="tl-n">742 not started</span></div></div>
+    </div>
+    <div class="phase-strip"><div class="phase-cell phase-future" title="Phase 1 — Canary 2
+Target: Oct 05, 2026
+State: New
+
+Canary 2 flight enabled — a small % of traffic served by ADBC.
+
+ADO item: 2194090"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194090" target="_blank"><div class="ph-num">Phase 1</div><div class="ph-name">Canary 2</div><div class="ph-short">Testing on friendly customers</div><div class="ph-date">Oct 05, 2026</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-active" title="Phase 2 — On by default
+Target: Sep 21, 2026
+State: New
+
+ADBC on-by-default rollout complete — 100% of traffic served by ADBC unless customer opted out.
+
+ADO item: 2194091"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194091" target="_blank"><div class="ph-num">Phase 2</div><div class="ph-name">On by default</div><div class="ph-short">ADBC becomes default for all customers</div><div class="ph-date">Sep 21, 2026</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 3 — Disable in Service
+Target: Jan 19, 2027
+State: New
+
+ODBC disabled at 100% in Service — customers still on ODBC will break unless migrated.
+
+ADO item: 2194092"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194092" target="_blank"><div class="ph-num">Phase 3</div><div class="ph-name">Disable in Service</div><div class="ph-short">ODBC turned off in Fabric/PBI Service</div><div class="ph-date">Jan 19, 2027</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 4 — Remove from Desktop/Gateway
+Target: Feb 01, 2027
+State: New
+
+Last Desktop and Gateway release with Simba drivers. After this, ODBC no longer available in newly-installed clients.
+
+ADO item: 2194093"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194093" target="_blank"><div class="ph-num">Phase 4</div><div class="ph-name">Remove from Desktop/Gateway</div><div class="ph-short">Last release with old driver</div><div class="ph-date">Feb 01, 2027</div><div class="ph-state">New</div></a></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>0</strong> docs mention · <strong>0</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="AmazonRedshift" data-connector-display="Amazon Redshift">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-AmazonRedshift">Expand all (50)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-AmazonRedshift" data-filename="top-accounts-AmazonRedshift.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-AmazonRedshift"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td>Manchester Airport</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>77</td><td>Tom Gromski</td><td class="num">184,733</td><td class="num">0%</td></tr><tr><td>Blackmores Limited</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>9</td><td>—</td><td class="num">144,939</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">52,949</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">29,982</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">26,425</td><td class="num">0%</td></tr><tr><td>National Foods Ltd.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>7</td><td>—</td><td class="num">19,467</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">15,381</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">13,826</td><td class="num">0%</td></tr><tr><td>SeekNow</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>11</td><td>—</td><td class="num">9,676</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">8,957</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">8,069</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>ONERPM COMERCIO E SERVICOS DE MIDIA DIGITAL LTDA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>—</td><td class="num">7,579</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>株式会社リコー</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>237</td><td>Yuya Nishizawa</td><td class="num">7,365</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">7,085</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Climate Pros Inc.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>9</td><td>—</td><td class="num">6,643</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">6,085</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>ELGIN MAQUINAS SA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">5,393</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>GOLDEN STATE FOODS CORP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>50</td><td>Ryan McCreave</td><td class="num">3,803</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>AB SKF</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>582</td><td>Stefan Hillgard</td><td class="num">3,743</td><td class="num">1%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">3,535</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">3,478</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>New Broom Limited</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>Will Eastbury</td><td class="num">3,246</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">3,233</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>8dbe966e-6632-4960-a3a9-0ca27209bdcd IW PII Masked</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>—</td><td class="num">2,746</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Association Analytics</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>6</td><td>—</td><td class="num">2,634</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>European Broadcasting Union EBU</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>10</td><td>Fabrice Muller</td><td class="num">2,570</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>THERMOFISHER SCIENTIFIC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>3,027</td><td>Thomas Goodge</td><td class="num">2,530</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>95546774-d19f-4303-bc7f-c86bb061280c IW PII Masked</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">2,477</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">2,416</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Apollo Tyres Ltd</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>221</td><td>—</td><td class="num">2,397</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">2,351</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">2,265</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>The Collace Group Panama SA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>3</td><td>—</td><td class="num">2,223</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">2,172</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>UNIT-T</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>15</td><td>—</td><td class="num">2,092</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">1,965</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">1,890</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>HALSTED FINANCIAL SERVICES</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">1,837</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Hubert Burda Media Holding GmbH &amp; Co. KG</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>77</td><td>Stefan Heße</td><td class="num">1,688</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>PUMIKI GROUP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">1,639</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>CASTLERY PTE LTD</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>3</td><td>—</td><td class="num">1,636</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>REFINERY89</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">1,391</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Government Technology Agency, on behalf of the Government of the Republic of Singapore</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>Vincent Ang</td><td class="num">1,323</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">1,319</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">1,300</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>INTERACTIVE COMMUNICATIONS</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>33</td><td>Mike Gravlee</td><td class="num">1,267</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">1,262</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>CORPORACION INMOBILIARIA NERIDA MARIA S.A.C</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">1,235</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">1,190</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>COMPANHIA ULTRAGAZ SA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>57</td><td>Sheila Dore</td><td class="num">1,145</td><td class="num">0%</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="conn-card" id="card-Dremio">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Dremio</h3>
+      <span class="track-pill track-partnership" title="Partnership-managed rollout — includes OAuth discovery + docs update. Timing coordinated with Dremio.">ODBC → ADBC (partner-timed)</span>
+      <span class="pill-whole" title="Whole-connector aggregate: totals + tenant buckets computed across ALL tenants that showed activity in the 7d query window, pre-truncation. Top-accounts section below is drawn from top-500 by ODBC volume.">whole-connector</span>
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2195739" target="_blank">ADO #2195739 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val" title="Percent of query volume on ADBC. Calculated as ADBC events / (ADBC + ODBC events) across in-scope tenants for this connector, 7d rolling window. Representative of driver mix - top-500 tenants capture near-all connector query volume.">0.35%</div><div class="kpi-sub">% on ADBC · 618 ADBC vs 175,302 ODBC events (7d)</div>
+      </div>
+      <div class="tenant-cell card-tenant" title="53 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 3 (6%)
+In-flight (20-85% ADBC): 2 (4%)
+Not started (&lt;20% ADBC): 48 (91%)"><div class="tenant-total">53 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:5.660377358490566%"></div><div class="ts-seg ts-i" style="width:3.7735849056603774%"></div><div class="ts-seg ts-n" style="width:90.56603773584905%"></div></div><div class="tenant-legend"><span class="tl-m">3 done</span> · <span class="tl-i">2 in-flight</span> · <span class="tl-n">48 not started</span></div></div>
+    </div>
+    <div class="phase-strip"><div class="phase-cell phase-active" title="Phase 1 — Canary 2
+Target: Sep 25, 2026
+State: Not yet in ADO
+
+Canary 2 flight enabled — a small % of traffic served by ADBC.
+
+ADO item not yet created - target date from David&#x27;s master schedule."><div class="phase-link"><div class="ph-num">Phase 1</div><div class="ph-name">Canary 2</div><div class="ph-short">Testing on friendly customers</div><div class="ph-date">Sep 25, 2026</div><div class="ph-state">Not in ADO</div></div></div><div class="phase-cell phase-future" title="Phase 2 — On by default
+Target: Oct 19, 2026
+State: Not yet in ADO
+
+ADBC on-by-default rollout complete — 100% of traffic served by ADBC unless customer opted out.
+
+ADO item not yet created - target date from David&#x27;s master schedule."><div class="phase-link"><div class="ph-num">Phase 2</div><div class="ph-name">On by default</div><div class="ph-short">ADBC becomes default for all customers</div><div class="ph-date">Oct 19, 2026</div><div class="ph-state">Not in ADO</div></div></div><div class="phase-cell phase-future" title="Phase 3 — Disable in Service
+Target: Mar 01, 2027
+State: Not yet in ADO
+
+ODBC disabled at 100% in Service — customers still on ODBC will break unless migrated.
+
+ADO item not yet created - target date from David&#x27;s master schedule."><div class="phase-link"><div class="ph-num">Phase 3</div><div class="ph-name">Disable in Service</div><div class="ph-short">ODBC turned off in Fabric/PBI Service</div><div class="ph-date">Mar 01, 2027</div><div class="ph-state">Not in ADO</div></div></div><div class="phase-cell phase-future" title="Phase 4 — Remove from Desktop/Gateway
+Target: Apr 30, 2027
+State: Not yet in ADO
+
+Last Desktop and Gateway release with Simba drivers. After this, ODBC no longer available in newly-installed clients.
+
+ADO item not yet created - target date from David&#x27;s master schedule."><div class="phase-link"><div class="ph-num">Phase 4</div><div class="ph-name">Remove from Desktop/Gateway</div><div class="ph-short">Last release with old driver</div><div class="ph-date">Apr 30, 2027</div><div class="ph-state">Not in ADO</div></div></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>22</strong> docs mention · <strong>2</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="Dremio" data-connector-display="Dremio">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-Dremio">Expand all (50)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-Dremio" data-filename="top-accounts-Dremio.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-Dremio"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td>A.P. Møller - Maersk Group</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>656</td><td>Sophie Rosgaard Mackeprang</td><td class="num">92,773</td><td class="num">0%</td></tr><tr><td>Volkswagen AG Germany</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>102</td><td>Will Garvin</td><td class="num">55,961</td><td class="num">0%</td></tr><tr><td>Corteva Agriscience</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>662</td><td>Shawn Block</td><td class="num">9,297</td><td class="num">0%</td></tr><tr><td>OURO FINO BIOLOGICOS LTDA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>—</td><td class="num">2,428</td><td class="num">0%</td></tr><tr><td>WEG INDUSTRIAS SA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>195</td><td>—</td><td class="num">1,829</td><td class="num">14%</td></tr><tr><td>STEINBACH CREDIT UNION LTD</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>15</td><td>Rafael Gutierrez</td><td class="num">1,779</td><td class="num">0%</td></tr><tr><td>Gruppy</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">1,668</td><td class="num">0%</td></tr><tr><td>Loadsmart, Inc</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">1,653</td><td class="num">0%</td></tr><tr><td>VANGUARD GROUP INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>151</td><td>Corrie Grentzenberg</td><td class="num">898</td><td class="num">0%</td></tr><tr><td>NUSKIN INTERNATIONAL INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>78</td><td>Rhea Ogard</td><td class="num">862</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>pilot Verwaltungsgesellschaft mbH</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>3</td><td>—</td><td class="num">635</td><td class="num">26%</td></tr><tr class="ta-hidden"><td>AB InBev</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>320</td><td>Sunil Bindagi</td><td class="num">615</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">548</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">466</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>VACATION RENTAL PROS</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>5</td><td>—</td><td class="num">397</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">396</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>RIO QUALITY COMERCIO DE ALIMENTOS L</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>—</td><td class="num">390</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Marsh McLennan</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>David Golebieski</td><td class="num">300</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">201</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">197</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">190</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>SHOPPING DO CIDADAO SERVIÇOS E INFORMÁTICA LTDA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">187</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">181</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">176</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">164</td><td class="num">34%</td></tr><tr class="ta-hidden"><td>MARS INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>540</td><td>Sam Brown</td><td class="num">156</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">114</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">109</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">103</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">99</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">98</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>privateimoveis.com</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">97</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">83</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">56</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">42</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">22</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">18</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Vilaurbe Empreendimentos Imobiliários Lt</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">18</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">14</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">11</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">10</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">10</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Education Breadth T2</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">8</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">7</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">7</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>APC-AG.DE</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>4</td><td>—</td><td class="num">7</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">7</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">7</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>BOSTON SCIENTIFIC CORPORATION</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1,160</td><td>Nayan Patel</td><td class="num">7</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">1</td><td class="num">0%</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="conn-card" id="card-Spark">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Spark / HDInsight Spark</h3>
+      <span class="track-pill track-canary" title="Canary track — ODBC → ADBC. Covers Databricks, HDInsight, and Spark connectors.">ODBC → ADBC</span>
+      <span class="pill-whole" title="Whole-connector aggregate: totals + tenant buckets computed across ALL tenants that showed activity in the 7d query window, pre-truncation. Top-accounts section below is drawn from top-500 by ODBC volume.">whole-connector</span>
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194058" target="_blank">ADO #2194058 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val" title="Percent of query volume on ADBC. Calculated as ADBC events / (ADBC + ODBC events) across in-scope tenants for this connector, 7d rolling window. Representative of driver mix - top-500 tenants capture near-all connector query volume.">0.35%</div><div class="kpi-sub">% on ADBC · 93 ADBC vs 26,153 ODBC events (7d)</div>
+      </div>
+      <div class="tenant-cell card-tenant" title="57 tenants with driver activity in the 7d window
+Migrated (&gt;=85% ADBC): 1 (2%)
+In-flight (20-85% ADBC): 0 (0%)
+Not started (&lt;20% ADBC): 56 (98%)"><div class="tenant-total">57 <span class="tt-lbl">tenants</span></div><div class="tenant-stack"><div class="ts-seg ts-m" style="width:1.7543859649122806%"></div><div class="ts-seg ts-n" style="width:98.24561403508773%"></div></div><div class="tenant-legend"><span class="tl-m">1 done</span> · <span class="tl-i">0 in-flight</span> · <span class="tl-n">56 not started</span></div></div>
+    </div>
+    <div class="phase-strip"><div class="phase-cell phase-done" title="Phase 1 — Canary 2
+Target: Sep 21, 2026
+State: Closed
+
+Canary 2 flight enabled — a small % of traffic served by ADBC.
+
+ADO item: 2194095"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194095" target="_blank"><div class="ph-num">Phase 1</div><div class="ph-name">Canary 2</div><div class="ph-short">Testing on friendly customers</div><div class="ph-date">Sep 21, 2026</div><div class="ph-state">Closed</div></a></div><div class="phase-cell phase-future" title="Phase 2 — On by default
+Target: Oct 30, 2026
+State: New
+
+ADBC on-by-default rollout complete — 100% of traffic served by ADBC unless customer opted out.
+
+ADO item: 2194096"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194096" target="_blank"><div class="ph-num">Phase 2</div><div class="ph-name">On by default</div><div class="ph-short">ADBC becomes default for all customers</div><div class="ph-date">Oct 30, 2026</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 3 — Disable in Service
+Target: Mar 01, 2027
+State: New
+
+ODBC disabled at 100% in Service — customers still on ODBC will break unless migrated.
+
+ADO item: 2194097"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194097" target="_blank"><div class="ph-num">Phase 3</div><div class="ph-name">Disable in Service</div><div class="ph-short">ODBC turned off in Fabric/PBI Service</div><div class="ph-date">Mar 01, 2027</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 4 — Remove from Desktop/Gateway
+Target: Apr 27, 2027
+State: New
+
+Last Desktop and Gateway release with Simba drivers. After this, ODBC no longer available in newly-installed clients.
+
+ADO item: 2194099"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194099" target="_blank"><div class="ph-num">Phase 4</div><div class="ph-name">Remove from Desktop/Gateway</div><div class="ph-short">Last release with old driver</div><div class="ph-date">Apr 27, 2027</div><div class="ph-state">New</div></a></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>0</strong> docs mention · <strong>0</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="Spark" data-connector-display="Spark / HDInsight Spark">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-Spark">Expand all (50)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-Spark" data-filename="top-accounts-Spark.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-Spark"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td>小米科技有限责任公司</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>3</td><td>Qianyu Fang</td><td class="num">6,643</td><td class="num">0%</td></tr><tr><td>Bank of Cyprus Ltd</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>Loukia Jacovidou</td><td class="num">5,272</td><td class="num">0%</td></tr><tr><td>TENNESSEE ONCOLOGY PLLC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>19</td><td>—</td><td class="num">2,425</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">2,067</td><td class="num">0%</td></tr><tr><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">1,524</td><td class="num">0%</td></tr><tr><td>Lidl Stiftung &amp; Co. KG</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>36</td><td>Uwe Hamlescher</td><td class="num">1,046</td><td class="num">0%</td></tr><tr><td>MTR CORP LTD</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>15</td><td>Jonas Sun</td><td class="num">1,042</td><td class="num">0%</td></tr><tr><td>Civeo Management LLC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>21</td><td>Eric Pearia</td><td class="num">824</td><td class="num">0%</td></tr><tr><td>MARS INC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>540</td><td>Sam Brown</td><td class="num">467</td><td class="num">0%</td></tr><tr><td>OTAVA OY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>41</td><td>—</td><td class="num">442</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">410</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">349</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>TemperPack</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>10</td><td>Humayun Zameer</td><td class="num">328</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Axalta Coating Systems, LLC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>414</td><td>Jeff Taylor</td><td class="num">282</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Oncology Analytics</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>13</td><td>Sunitha Subramaniam</td><td class="num">230</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>ROCKEFELLER AND COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>106</td><td>Kyle Johnson</td><td class="num">228</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>US Department of Energy</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>46</td><td>Michael Vance</td><td class="num">228</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>TD SYNNEX</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>297</td><td>—</td><td class="num">223</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">199</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Glen Raven Custom Fabrics Llc</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>8</td><td>Natesha Morrison</td><td class="num">185</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Deutsche Glasfaser Holding GmbH</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>3</td><td>—</td><td class="num">175</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Tvs Group</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>626</td><td>Surajit Sinha</td><td class="num">169</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>MICROSOFT</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>100,614</td><td>—</td><td class="num">157</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>PROCTER &amp; GAMBLE COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>955</td><td>Todd Bowman</td><td class="num">154</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>COCA COLA COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>843</td><td>Neil Kent</td><td class="num">119</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>MICHELIN</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>382</td><td>Mariama Conte</td><td class="num">115</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Ermenegildo Zegna Holditalia spa</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>91</td><td>Angela Micocci</td><td class="num">101</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>浙江吉利控股集团有限公司</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>195</td><td>Yuan Gao</td><td class="num">91</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">69</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>American Airlines Group</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>679</td><td>Yasir Siddiqui</td><td class="num">63</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>GSK</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>916</td><td>Steven Rodgers</td><td class="num">59</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>OOH MEDIA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>2</td><td>—</td><td class="num">56</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>BURLINGTON NORTHERN SANTA FE CORP</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>75</td><td>Vinny Paterno</td><td class="num">48</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>7 ELEVEN CORPORATION</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>873</td><td>Rob Hoch</td><td class="num">43</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>DLA Piper</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>14</td><td>Steve Newton</td><td class="num">39</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Mercedes-Benz Group AG</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>991</td><td>Zoltan Somogyi</td><td class="num">38</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Hays</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>61</td><td>David Morrison</td><td class="num">36</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>ÅHLÉNS</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>51</td><td>Susann Rönnlund</td><td class="num">27</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>CATS PROTECTION LEAGUE</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>4</td><td>—</td><td class="num">25</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Aggreko</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1,157</td><td>Zeshan Aziz</td><td class="num">21</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>TELECOM ITALIA SPA</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>56</td><td>Valerio Cifola</td><td class="num">20</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>RESMED</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>222</td><td>Stephen Barnes</td><td class="num">20</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>mOOkstr Holdings, Inc.</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>9</td><td>—</td><td class="num">16</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>TENNESSEE ONCOLOGY PLLC</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1</td><td>—</td><td class="num">15</td><td class="num">0%</td></tr><tr class="ta-hidden"><td></td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>0</td><td>—</td><td class="num">12</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>B. Braun Melsungen AG</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>1,110</td><td>Maria Soulemezi</td><td class="num">8</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>Qiagen GmbH</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>11</td><td>Wolfgang Ladermann</td><td class="num">7</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>ADP NEW JERSEY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>54</td><td>Tattiana Torres Moya</td><td class="num">7</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>NORTHWESTERN MUTUAL</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>41</td><td>Nick Cannizzaro</td><td class="num">7</td><td class="num">0%</td></tr><tr class="ta-hidden"><td>COCA COLA COMPANY</td><td><span class="acr-stub" title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID. Will show $ amount when adia_acr.json is populated.">ACR pending</span></td><td>10</td><td>Neil Kent</td><td class="num">6</td><td class="num">0%</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="conn-card" id="card-GoogleBigQueryAAD">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Google BigQuery (Azure AD)</h3>
+      <span class="track-pill track-canary" title="Canary track — ODBC → ADBC. AAD-auth variant of BigQuery.">ODBC → ADBC</span>
+      <span class="pill-sample" title="Aggregate derived from top-500 CSV (connector_totals.json not present). Run refresh_kusto.py to emit whole-connector totals.">top-500 fallback</span>
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194056" target="_blank">ADO #2194056 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val" title="Percent of query volume on ADBC. Calculated as ADBC events / (ADBC + ODBC events) across in-scope tenants for this connector, 7d rolling window. Representative of driver mix - top-500 tenants capture near-all connector query volume.">0%</div><div class="kpi-sub">% on ADBC · 0 ADBC vs 0 ODBC events (7d)</div>
+      </div>
+      
+    </div>
+    <div class="phase-strip"><div class="phase-cell phase-done" title="Phase 1 — Canary 2
+Target: Sep 21, 2026
+State: Closed
+
+Canary 2 flight enabled — a small % of traffic served by ADBC.
+
+ADO item: 2194085"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194085" target="_blank"><div class="ph-num">Phase 1</div><div class="ph-name">Canary 2</div><div class="ph-short">Testing on friendly customers</div><div class="ph-date">Sep 21, 2026</div><div class="ph-state">Closed</div></a></div><div class="phase-cell phase-future" title="Phase 2 — On by default
+Target: Oct 30, 2026
+State: New
+
+ADBC on-by-default rollout complete — 100% of traffic served by ADBC unless customer opted out.
+
+ADO item: 2194086"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194086" target="_blank"><div class="ph-num">Phase 2</div><div class="ph-name">On by default</div><div class="ph-short">ADBC becomes default for all customers</div><div class="ph-date">Oct 30, 2026</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 3 — Disable in Service
+Target: Mar 01, 2027
+State: New
+
+ODBC disabled at 100% in Service — customers still on ODBC will break unless migrated.
+
+ADO item: 2194087"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194087" target="_blank"><div class="ph-num">Phase 3</div><div class="ph-name">Disable in Service</div><div class="ph-short">ODBC turned off in Fabric/PBI Service</div><div class="ph-date">Mar 01, 2027</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 4 — Remove from Desktop/Gateway
+Target: Mar 10, 2027
+State: New
+
+Last Desktop and Gateway release with Simba drivers. After this, ODBC no longer available in newly-installed clients.
+
+ADO item: 2194089"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194089" target="_blank"><div class="ph-num">Phase 4</div><div class="ph-name">Remove from Desktop/Gateway</div><div class="ph-short">Last release with old driver</div><div class="ph-date">Mar 10, 2027</div><div class="ph-state">New</div></a></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>0</strong> docs mention · <strong>0</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="GoogleBigQueryAAD" data-connector-display="Google BigQuery (Azure AD)">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-GoogleBigQueryAAD">Expand all (0)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-GoogleBigQueryAAD" data-filename="top-accounts-GoogleBigQueryAAD.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-GoogleBigQueryAAD"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td colspan="6" class="empty">No top-N sample data available for this connector.</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="conn-card" id="card-Impala">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Impala</h3>
+      <span class="track-pill track-canary" title="Canary track — ODBC → ADBC.">ODBC → ADBC</span>
+      <span class="pill-whole" title="Whole-connector aggregate: totals + tenant buckets computed across ALL tenants that showed activity in the 7d query window, pre-truncation. Top-accounts section below is drawn from top-500 by ODBC volume.">whole-connector</span>
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194059" target="_blank">ADO #2194059 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val" title="Percent of query volume on ADBC. Calculated as ADBC events / (ADBC + ODBC events) across in-scope tenants for this connector, 7d rolling window. Representative of driver mix - top-500 tenants capture near-all connector query volume.">0%</div><div class="kpi-sub">% on ADBC · 0 ADBC vs 0 ODBC events (7d)</div>
+      </div>
+      
+    </div>
+    <div class="phase-strip"><div class="phase-cell phase-done" title="Phase 1 — Canary 2
+Target: Sep 21, 2026
+State: Closed
+
+Canary 2 flight enabled — a small % of traffic served by ADBC.
+
+ADO item: 2194100"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194100" target="_blank"><div class="ph-num">Phase 1</div><div class="ph-name">Canary 2</div><div class="ph-short">Testing on friendly customers</div><div class="ph-date">Sep 21, 2026</div><div class="ph-state">Closed</div></a></div><div class="phase-cell phase-future" title="Phase 2 — On by default
+Target: Oct 30, 2026
+State: New
+
+ADBC on-by-default rollout complete — 100% of traffic served by ADBC unless customer opted out.
+
+ADO item: 2194101"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194101" target="_blank"><div class="ph-num">Phase 2</div><div class="ph-name">On by default</div><div class="ph-short">ADBC becomes default for all customers</div><div class="ph-date">Oct 30, 2026</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 3 — Disable in Service
+Target: Mar 01, 2027
+State: New
+
+ODBC disabled at 100% in Service — customers still on ODBC will break unless migrated.
+
+ADO item: 2194102"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194102" target="_blank"><div class="ph-num">Phase 3</div><div class="ph-name">Disable in Service</div><div class="ph-short">ODBC turned off in Fabric/PBI Service</div><div class="ph-date">Mar 01, 2027</div><div class="ph-state">New</div></a></div><div class="phase-cell phase-future" title="Phase 4 — Remove from Desktop/Gateway
+Target: Mar 10, 2027
+State: New
+
+Last Desktop and Gateway release with Simba drivers. After this, ODBC no longer available in newly-installed clients.
+
+ADO item: 2194104"><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194104" target="_blank"><div class="ph-num">Phase 4</div><div class="ph-name">Remove from Desktop/Gateway</div><div class="ph-short">Last release with old driver</div><div class="ph-date">Mar 10, 2027</div><div class="ph-state">New</div></a></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>186</strong> docs mention · <strong>7</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="Impala" data-connector-display="Impala">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-Impala">Expand all (0)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-Impala" data-filename="top-accounts-Impala.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-Impala"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td colspan="6" class="empty">No top-N sample data available for this connector.</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="conn-card" id="card-HiveLLAP">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Hive LLAP / HDInsight Interactive Query</h3>
+      <span class="track-pill track-deprecation" title="Deprecation only — no ADBC driver available. Customers must migrate to a different query engine.">Deprecation (no ADBC path)</span>
+      
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194060" target="_blank">ADO #2194060 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val na">N/A</div><div class="kpi-sub">No ADBC migration path — Deprecation (no ADBC path) track</div>
+      </div>
+      
+    </div>
+    <div class="phase-strip-alt"><div class="phase-cell phase-future" title="Deprecation gate. Target: Apr 27, 2027. State: Execution. Retires without an ADBC path. Customers must migrate to a different query engine."><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194060" target="_blank"><div class="ph-num">Deprecation</div><div class="ph-name">Deprecation gate</div><div class="ph-short">Retires without an ADBC path. Customers must migrate to a different query engine.</div><div class="ph-date">Apr 27, 2027</div><div class="ph-state">Execution</div></a></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>0</strong> docs mention · <strong>0</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="HiveLLAP" data-connector-display="Hive LLAP / HDInsight Interactive Query">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-HiveLLAP">Expand all (0)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-HiveLLAP" data-filename="top-accounts-HiveLLAP.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-HiveLLAP"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td colspan="6" class="empty">No top-N sample data available for this connector.</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="conn-card" id="card-Vertica">
+  <div class="conn-head">
+    <div class="conn-title">
+      <h3>Vertica</h3>
+      <span class="track-pill track-gateway" title="Gateway-only path. No ADBC comparison possible. Deprecation happens through Simba EOL Oct-27.">Gateway-only (Simba EOL)</span>
+      
+    </div>
+    <a class="ado-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2194062" target="_blank">ADO #2194062 ↗</a>
+  </div>
+  <div class="conn-body">
+    <div class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-val na">N/A</div><div class="kpi-sub">No ADBC migration path — Gateway-only (Simba EOL) track</div>
+      </div>
+      
+    </div>
+    <div class="phase-strip-alt"><div class="phase-cell phase-near" title="Gateway-only retirement. Target: Aug 31, 2026. State: Committed. Retires via gateway release train (Simba EOL). No ADBC comparison possible — this connector only runs through the on-prem gateway."><a class="phase-link" href="https://dev.azure.com/powerbi/Power%20Query/_workitems/edit/2014547" target="_blank"><div class="ph-num">Deprecation</div><div class="ph-name">Gateway-only retirement</div><div class="ph-short">Retires via gateway release train (Simba EOL). No ADBC comparison possible — this connector only runs through the on-prem gateway.</div><div class="ph-date">Aug 31, 2026</div><div class="ph-state">Committed</div></a></div></div>
+    <div class="doc-line" title="Public Microsoft Docs pages mentioning this connector, from the MicrosoftDocs GitHub crawl. Review-flagged = mentions ODBC/ADBC/driver/deprecated/migration keywords."><strong>403</strong> docs mention · <strong>17</strong> flagged for review</div>
+    <div class="top-accounts" data-connector="Vertica" data-connector-display="Vertica">
+      <div class="ta-toolbar">
+        <div class="ta-header" title="Top tenants still generating ODBC events on this connector, sorted by ODBC volume. Concentration flag = fraction of that tenant&#x27;s TOTAL cross-connector query volume attributable to this connector - a proxy for how material the breakage risk is.">
+          Top accounts on legacy path
+        </div>
+        <div class="ta-actions">
+          <button class="ta-btn ta-expand" data-target="ta-table-Vertica">Expand all (0)</button>
+          <button class="ta-btn ta-download" data-target="ta-table-Vertica" data-filename="top-accounts-Vertica.csv">Download CSV</button>
+        </div>
+      </div>
+      <table class="ta-table" id="ta-table-Vertica"><thead><tr>
+        <th>Account</th>
+        <th title="Combined PBI + Fabric ACR at risk - pending ADIA join on TPID.">$ ACR at risk</th>
+        <th title="Fabric Monthly Active Users at this tenant - proxy for account size until ADIA ACR lands.">Fabric MAU</th>
+        <th title="Customer Success / Technical Account Manager owner, from WhoIsCSAM cache.">CSA / TAM</th>
+        <th class="num" title="ODBC event count (7d rolling), from PQO + CDSA + Premium + 8 Shared regional clusters. Cross-cluster dcount is an upper bound.">ODBC (7d)</th>
+        <th class="num" title="Percent of this tenant&#x27;s query volume on ADBC.">% ADBC</th>
+      </tr></thead><tbody>
+      <tr><td colspan="6" class="empty">No top-N sample data available for this connector.</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+
+</section>
+
+</main>
+
+<script>
+document.querySelectorAll('.tab-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+    try {
+      if (history.replaceState) history.replaceState(null, '', '#' + b.dataset.tab);
+    } catch (err) {
+      // SharePoint file-preview iframe uses about:srcdoc — history state calls throw.
+      // Safe to ignore; tab switch still works.
+    }
+  });
+});
+// Row clicks jump to per-connector detail on Tab 2
+document.querySelectorAll('.conn-row').forEach(row => {
+  row.addEventListener('click', () => {
+    const anchor = row.dataset.anchor;
+    if (!anchor) return;
+    const rolloutBtn = document.querySelector('.tab-btn[data-tab="rollout"]');
+    if (rolloutBtn) rolloutBtn.click();
+    setTimeout(() => {
+      const el = document.getElementById(anchor);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 100);
+  });
+});
+// Restore tab from URL hash
+if (location.hash) {
+  const t = location.hash.replace('#','');
+  const btn = document.querySelector('.tab-btn[data-tab="' + t + '"]');
+  if (btn) btn.click();
+}
+
+// Expand-all + Download-CSV buttons on each connector's top-accounts table
+document.querySelectorAll('.ta-expand').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const tbl = document.getElementById(btn.dataset.target);
+    if (!tbl) return;
+    const expanded = tbl.classList.toggle('expanded');
+    const m = btn.textContent.match(new RegExp('\\((\\d+)\\)'));
+    const totalN = m ? m[1] : '';
+    btn.textContent = expanded ? ('Collapse (' + totalN + ')') : ('Expand all (' + totalN + ')');
+  });
+});
+document.querySelectorAll('.ta-download').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const tbl = document.getElementById(btn.dataset.target);
+    if (!tbl) return;
+    const wsRE = new RegExp('\\s+', 'g');
+    const specRE = new RegExp('[",\\n]');
+    const quoteRE = new RegExp('"', 'g');
+    const NL = String.fromCharCode(10);
+    const rows = [...tbl.querySelectorAll('tr')].map(tr =>
+      [...tr.querySelectorAll('th, td')].map(cell => {
+        const txt = cell.innerText.replace(wsRE, ' ').trim();
+        return specRE.test(txt) ? '"' + txt.replace(quoteRE, '""') + '"' : txt;
+      }).join(',')
+    ).join(NL);
+    const fname = btn.dataset.filename || 'top-accounts.csv';
+    try {
+      const blob = new Blob([rows], {type:'text/csv;charset=utf-8'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
+    } catch (err) {
+      // SharePoint file-preview iframe (about:srcdoc) blocks Blob/URL.createObjectURL.
+      // Fallback: data: URL. Works inside srcdoc.
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows);
+      a.download = fname;
+      a.target = '_blank';
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); }, 0);
+    }
+  });
+});
+// Convert every [title] to data-tip and render a floating tooltip on hover/focus.
+(function(){
+  const tt = document.createElement('div');
+  tt.className = 'floating-tip';
+  tt.setAttribute('role','tooltip');
+  tt.style.display = 'none';
+  document.body.appendChild(tt);
+
+  // Migrate title -> data-tip so browsers don't also show native
+  document.querySelectorAll('[title]').forEach(el => {
+    const t = el.getAttribute('title');
+    if (!t) return;
+    el.setAttribute('data-tip', t);
+    el.removeAttribute('title');
+  });
+
+  function show(el, e){
+    const text = el.getAttribute('data-tip');
+    if (!text) return;
+    tt.textContent = text;
+    tt.style.display = 'block';
+    // Position: below cursor, clamp to viewport
+    const pad = 12;
+    let x = (e ? e.clientX : el.getBoundingClientRect().left) + 14;
+    let y = (e ? e.clientY : el.getBoundingClientRect().bottom) + 14;
+    // Force layout
+    tt.style.left = '0px'; tt.style.top = '0px';
+    const rect = tt.getBoundingClientRect();
+    if (x + rect.width + pad > window.innerWidth)  x = window.innerWidth  - rect.width  - pad;
+    if (y + rect.height + pad > window.innerHeight) y = (e ? e.clientY : el.getBoundingClientRect().top) - rect.height - 14;
+    if (x < pad) x = pad;
+    if (y < pad) y = pad;
+    tt.style.left = x + 'px';
+    tt.style.top  = y + 'px';
+  }
+  function hide(){ tt.style.display = 'none'; }
+
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest('[data-tip]');
+    if (el) show(el, e);
+  });
+  document.addEventListener('mousemove', e => {
+    if (tt.style.display === 'block') {
+      const el = e.target.closest('[data-tip]');
+      if (el) show(el, e); else hide();
+    }
+  });
+  document.addEventListener('mouseout', e => {
+    const el = e.target.closest('[data-tip]');
+    const to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('[data-tip]');
+    if (el && el !== to) hide();
+  });
+  // Also support keyboard focus for accessibility
+  document.addEventListener('focusin',  e => { const el = e.target.closest('[data-tip]'); if (el) show(el); });
+  document.addEventListener('focusout', hide);
+  document.addEventListener('scroll', hide, true);
+})();
+</script>
+
+</body>
+</html>
