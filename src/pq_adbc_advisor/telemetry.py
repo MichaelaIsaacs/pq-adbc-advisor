@@ -155,15 +155,20 @@ def telemetry_status() -> dict[str, Any]:
     """Return a dict describing the current telemetry configuration.
 
     Useful for the customer to check what the tool is doing before they
-    trust the opt-out choice.
+    trust the opt-out choice. v0.3.5 also exposes the last-send status
+    so corporate-proxy / throttled-ikey issues surface without a debug
+    session.
     """
     resolved = _resolve_connection()
+    history = get_send_history()
     return {
         "endpoint_configured": resolved is not None,
         "resource": "appi-fabric-migration-scanner" if resolved else None,
         "env_var_off": os.environ.get("PQ_ADBC_ADVISOR_TELEMETRY", "").lower() in ("off", "0", "false"),
         "persistent_opt_out": _state.is_telemetry_opted_out(),
         "effectively_enabled": _telemetry_enabled(True),
+        "last_send": history[-1] if history else None,
+        "recent_send_statuses": [h["status"] for h in history[-5:]],
     }
 
 
@@ -328,7 +333,16 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
     }
 
     run_id = uuid.uuid4().hex
-    combined = _state.compute_run_state(current, run_id)
+    tenant_id = _tenant_id()
+    workspace_id = report.workspace_id or ""
+    # v0.3.5 Bug 2 fix — pass workspace/tenant identity to compute_run_state
+    # so the home-fallback baseline is stored per-workspace instead of a
+    # single machine-wide file that shadows every other workspace scan.
+    combined = _state.compute_run_state(
+        current, run_id,
+        workspace_id=workspace_id,
+        tenant_hash=_tenant_hash(tenant_id),
+    )
 
     # Notify the customer on their FIRST scan of a given workspace.
     # This is our privacy-notification hook (David Coe review): before the
@@ -336,14 +350,13 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
     # and how to opt out.
     _maybe_print_first_run_notice(bool(combined.get("is_first_run", False)))
 
-    tenant_id = _tenant_id()
-    workspace_id = report.workspace_id or ""
-
     # Spec-compatible fields (event name + field names from the spec) FIRST.
     props = _base_properties(tenant_id, workspace_id, run_id, duration_seconds)
-    artifacts_scanned = len(report.artifacts) + len(report.skipped)
+    inspected_artifacts = len(report.artifacts)
+    artifacts_scanned = inspected_artifacts + len(report.skipped)
     props.update({
         "artifacts_scanned": artifacts_scanned,
+        "inspected_artifacts": inspected_artifacts,  # v0.3.5 Bug 7 fix
         "impacted_count": migrating_artifacts,
         "odbc_pinned_count": pinned_odbc,
         "odbc_pinned_at_risk_count": pinned_at_risk,
@@ -363,7 +376,11 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
         props["coverage_score_pct"] = 0
     props["sempy_hits"] = getattr(report, "sempy_hits", 0)
     props["sempy_used"] = bool(getattr(report, "used_sempy_path", False))
-    props["estimated_manual_hours_saved"] = _estimated_manual_hours_saved(artifacts_scanned)
+    # v0.3.5 Bug 7 fix: hours-saved credits inspected items ONLY. Skipped
+    # items (permission_denied, deleted, non-inspectable types) produced
+    # no diagnostic value, so the tool cannot claim to have saved manual
+    # triage time on them.
+    props["estimated_manual_hours_saved"] = _estimated_manual_hours_saved(inspected_artifacts)
     for reason, count in report.skipped_by_reason().items():
         props[f"skipped_by_reason_{_safe_key(reason)}"] = count
     # Spec's ``impacts_by_connector`` field, flattened as one property per
@@ -374,10 +391,12 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
 
     # Extra improvement-over-time fields (not in the spec's original
     # contract but strictly additive so old queries still work).
+    is_first_run = bool(combined.get("is_first_run", True))
+    first_run_at = combined.get("first_run_at", "") or ""
     props.update({
         "run_count": combined.get("run_count", 1),
-        "is_first_run": combined.get("is_first_run", True),
-        "first_run_at": combined.get("first_run_at", ""),
+        "is_first_run": is_first_run,
+        "first_run_at": first_run_at,
         "first_risk_high": combined.get("first_risk_high", 0),
         "first_risk_medium": combined.get("first_risk_medium", 0),
         "first_pinned_odbc": combined.get("first_pinned_odbc", 0),
@@ -394,6 +413,58 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
     })
     for kind, count in (combined.get("first_counts_by_connector", {}) or {}).items():
         props[f"first_impacts_by_connector_{_safe_key(kind)}"] = count
+
+    # v0.3.5 — leadership resolution metrics
+    #
+    # These are the KQL money-shot fields: one-line "how much have they
+    # cleaned up since scan #1?" charts, computed here so nobody has to
+    # subtract in Kusto and nobody has to unpack per-connector fields
+    # side by side. Values can go NEGATIVE when a workspace grows
+    # (new pinned models added AFTER the baseline) — we send the signed
+    # delta so leadership charts distinguish "progress" from "regress".
+    props["resolved_risk_high"] = (
+        int(combined.get("first_risk_high", 0)) - current["risk_high"]
+    )
+    props["resolved_risk_medium"] = (
+        int(combined.get("first_risk_medium", 0)) - current["risk_medium"]
+    )
+    props["resolved_pinned_odbc"] = (
+        int(combined.get("first_pinned_odbc", 0)) - current["pinned_odbc"]
+    )
+    props["resolved_custom_dsn"] = (
+        int(combined.get("first_custom_dsn", 0)) - current["custom_dsn"]
+    )
+    props["resolved_migrating_artifacts"] = (
+        int(combined.get("first_migrating_artifacts", 0)) - current["migrating_artifacts"]
+    )
+    # Per-connector deltas so KQL can chart "Snowflake resolutions per week"
+    # in one line without unpacking baseline + current side by side.
+    first_by_kind = dict(combined.get("first_counts_by_connector", {}) or {})
+    all_kinds = set(first_by_kind) | set(counts_by_connector)
+    for kind in all_kinds:
+        first_n = int(first_by_kind.get(kind, 0))
+        curr_n = int(counts_by_connector.get(kind, 0))
+        props[f"resolved_by_connector_{_safe_key(kind)}"] = first_n - curr_n
+
+    # v0.3.5 — time_to_second_scan_days
+    #
+    # Proves iterative use. On first run this is empty. On subsequent
+    # runs it's the days between now and the persisted first_run_at.
+    # We only compute this once (on run #2) so leadership charts have
+    # a clean cohort metric; later runs still send it so a query can
+    # bucket by "second-scan latency" without joins.
+    if not is_first_run and first_run_at:
+        try:
+            from datetime import datetime as _dt
+            first_dt = _dt.fromisoformat(first_run_at.replace("Z", "+00:00"))
+            now_dt = _dt.fromisoformat(_state._now_iso().replace("Z", "+00:00"))
+            days = (now_dt - first_dt).total_seconds() / 86400.0
+            # Guard against clock skew producing negatives.
+            props["time_since_first_scan_days"] = round(max(days, 0.0), 2)
+        except (ValueError, TypeError):
+            props["time_since_first_scan_days"] = ""
+    else:
+        props["time_since_first_scan_days"] = ""
 
     _post("scan_complete", props)
 
@@ -442,10 +513,54 @@ def _safe_key(name: str) -> str:
     return "".join(c if (c.isalnum() or c == "_") else "_" for c in name)
 
 
+# --------------------------------------------------------------------------- #
+# _post observability (v0.3.5 Bug 9 fix)
+# --------------------------------------------------------------------------- #
+# A silent _post is worse than no _post: the PM team can't tell a
+# throttled ikey, a captive-portal proxy, or a regional 5xx from a happy
+# send. We now:
+#   * Inspect status_code and reject captive-portal HTML bodies.
+#   * Retry ONCE on 429 / 503.
+#   * Record every attempt's outcome in a bounded ring buffer that
+#     telemetry_status() exposes so users can debug corporate proxies.
+
+_SEND_HISTORY_CAP = 20
+_SEND_HISTORY: list[dict[str, Any]] = []
+_SEND_HISTORY_LOCK = __import__("threading").Lock()
+
+
+def _record_send(status: str, detail: str = "") -> None:
+    entry = {"at": _state._now_iso(), "status": status, "detail": detail[:200]}
+    with _SEND_HISTORY_LOCK:
+        _SEND_HISTORY.append(entry)
+        if len(_SEND_HISTORY) > _SEND_HISTORY_CAP:
+            del _SEND_HISTORY[: len(_SEND_HISTORY) - _SEND_HISTORY_CAP]
+
+
+def get_send_history() -> list[dict[str, Any]]:
+    """Snapshot of the last ~20 send attempts (v0.3.5).
+
+    Each entry: ``{"at": iso_utc, "status": str, "detail": str}``.
+    Status values: ``"ok"``, ``"retried_ok"``, ``"http_<code>"``,
+    ``"captive_portal"``, ``"network"``, ``"disabled"``.
+    """
+    with _SEND_HISTORY_LOCK:
+        return list(_SEND_HISTORY)
+
+
+def _looks_like_captive_portal(body: str) -> bool:
+    """Corporate proxies love returning a 200 + HTML login page."""
+    if not body:
+        return False
+    head = body[:2048].lower()
+    return "<html" in head or "<!doctype html" in head
+
+
 def _post(event_name: str, properties: dict[str, Any]) -> None:
-    """Fire-and-forget POST to Application Insights. Never raises."""
+    """Send one event to Application Insights with retry + observability."""
     resolved = _resolve_connection()
     if resolved is None:
+        _record_send("disabled", "no ikey resolved")
         return
     ikey, endpoint = resolved
 
@@ -462,15 +577,52 @@ def _post(event_name: str, properties: dict[str, Any]) -> None:
             },
         },
     }
-    try:
-        requests.post(
-            endpoint,
-            data=json.dumps(envelope),
-            headers={"Content-Type": "application/json"},
-            timeout=5,
+    body = json.dumps(envelope)
+    headers = {"Content-Type": "application/json"}
+
+    # First attempt.
+    r = _try_send(endpoint, body, headers)
+    if r is None:
+        # Network failure — retry once to absorb transient DNS blips.
+        r = _try_send(endpoint, body, headers)
+        if r is None:
+            _record_send("network", "requests raised twice in a row")
+            return
+        _record_send("retried_ok" if 200 <= r.status_code < 300 else f"http_{r.status_code}")
+        return
+
+    # HTTP response — classify.
+    if r.status_code in (429, 503):
+        r2 = _try_send(endpoint, body, headers)
+        if r2 is not None and 200 <= r2.status_code < 300:
+            _record_send("retried_ok", f"first={r.status_code}")
+            return
+        _record_send(
+            f"http_{r.status_code}",
+            f"retry {'also failed' if r2 is None else 'returned ' + str(r2.status_code)}",
         )
+        return
+
+    if 200 <= r.status_code < 300:
+        # 200 from a captive portal is a hidden failure.
+        try:
+            text_head = (r.text or "")[:2048]
+        except Exception:
+            text_head = ""
+        if _looks_like_captive_portal(text_head):
+            _record_send("captive_portal", "HTML body in a 2xx response")
+            return
+        _record_send("ok")
+        return
+
+    _record_send(f"http_{r.status_code}", (getattr(r, "text", "") or "")[:200])
+
+
+def _try_send(endpoint: str, body: str, headers: dict[str, str]):
+    try:
+        return requests.post(endpoint, data=body, headers=headers, timeout=5)
     except Exception:
-        pass
+        return None
 
 
 # --------------------------------------------------------------------------- #
