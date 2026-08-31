@@ -89,6 +89,8 @@ def build_snapshot() -> dict:
     reach = kql(
         'customEvents | where name == "scan_complete" '
         '| summarize scans=count(), '
+        'users=dcountif(tostring(customDimensions.user_hash), '
+        'tostring(customDimensions.user_hash) != ""), '
         'workspaces=dcount(tostring(customDimensions.workspace_id)), '
         'tenants=dcount(tostring(customDimensions.tenant_hash))',
         token,
@@ -185,20 +187,40 @@ def build_snapshot() -> dict:
     )
     snap["first_vs_return"] = fr.get("rows", [])
 
-    # ── GitHub reach ──────────────────────────────────────────────────
-    gh = kql(
+    # ── GitHub reach (from most-recent github_traffic event) ─────────
+    gh_row = kql(
         'customEvents | where name == "github_traffic" | top 1 by timestamp desc '
         '| project customDimensions',
         token,
     )
-    if gh.get("rows"):
-        raw = gh["rows"][0].get("customDimensions")
+    if gh_row.get("rows"):
+        raw = gh_row["rows"][0].get("customDimensions")
         try:
             snap["github"] = json.loads(raw) if isinstance(raw, str) else raw
         except Exception:
             snap["github"] = {}
     else:
         snap["github"] = {}
+
+    # ── GitHub clones history (direct pull, not via App Insights) ────
+    # Traffic API gives us 14 days of daily buckets — good enough for a
+    # chart. Fetched directly so we don't lose granularity through the
+    # customDimensions round-trip.
+    if gh_token:
+        try:
+            os.environ["GITHUB_TOKEN"] = gh_token
+            clones = _gh(f"/repos/{REPO}/traffic/clones", gh_token)
+            if isinstance(clones, dict):
+                snap["clones_history"] = clones.get("clones", []) or []
+                # Overwrite/augment top-level GitHub aggregates so the
+                # dashboard's numbers stay in sync with the chart even if
+                # the AppI event lagged.
+                snap["github"]["clones_14d"] = clones.get("count", snap["github"].get("clones_14d", 0))
+                snap["github"]["unique_cloners_14d"] = clones.get(
+                    "uniques", snap["github"].get("unique_cloners_14d", 0)
+                )
+        except Exception:
+            snap.setdefault("clones_history", [])
 
     # ── Release list (fresh) ──────────────────────────────────────────
     if gh_token:
