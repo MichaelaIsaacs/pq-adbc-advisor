@@ -13,6 +13,9 @@ from pq_adbc_advisor.report import ImpactReport, ImpactedArtifact
 @pytest.fixture(autouse=True)
 def _isolate(monkeypatch, tmp_path):
     monkeypatch.setattr(_state, "_LAKEHOUSE_PATH", str(tmp_path / "state.json"))
+    # v0.3.4: also isolate the home fallback so tests don't leak state
+    # into the developer's real ~/.pq-adbc-advisor.
+    monkeypatch.setattr(_state, "_home_fallback_path", lambda: str(tmp_path / "home.json"))
     monkeypatch.setattr(
         _telemetry, "BAKED_IN_CONNECTION_STRING",
         "InstrumentationKey=deadbeef-dead-beef-dead-beefdeadbeef;"

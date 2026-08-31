@@ -172,6 +172,9 @@ def test_hive_diagnosis_recommends_target_connector():
 @pytest.fixture
 def _isolated_state(monkeypatch, tmp_path):
     monkeypatch.setattr(_state, "_LAKEHOUSE_PATH", str(tmp_path / "state.json"))
+    # v0.3.4: isolate the home fallback too so tests don't pick up
+    # persisted baselines from the developer's real ~/.pq-adbc-advisor.
+    monkeypatch.setattr(_state, "_home_fallback_path", lambda: str(tmp_path / "home.json"))
     # Reset the process-scoped first-run-notice flag
     if hasattr(_telemetry._maybe_print_first_run_notice, "_printed"):
         delattr(_telemetry._maybe_print_first_run_notice, "_printed")

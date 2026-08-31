@@ -47,6 +47,49 @@ STATE_SCHEMA_VERSION = 1
 _LAKEHOUSE_PATH = "/lakehouse/default/Files/pq_adbc_advisor_state.json"
 
 
+def _home_fallback_path() -> str:
+    """Local fallback: ``~/.pq-adbc-advisor/state.json``.
+
+    v0.3.4: when running outside Fabric (local dev, CI, ADO agent) the
+    lakehouse path doesn't exist, so save_state used to silently fail and
+    every scan looked like ``is_first_run=True``. This fallback keeps the
+    first-run baseline intact so the "improvement over time" telemetry
+    actually shows improvement.
+    """
+    return os.path.expanduser("~/.pq-adbc-advisor/state.json")
+
+
+def _state_paths() -> list[str]:
+    """Return the ordered list of paths to try (lakehouse, then home)."""
+    return [_LAKEHOUSE_PATH, _home_fallback_path()]
+
+
+def state_backend() -> str:
+    """Return which backend the next write / read will use.
+
+    Values: ``"lakehouse"`` (Fabric default lakehouse writable),
+    ``"home"`` (local fallback under ~/.pq-adbc-advisor), or
+    ``"memory"`` (nothing writable — telemetry deltas will not persist).
+
+    Cheap enough to call from telemetry.emit_scan_summary so we can send
+    the backend as a customDimension and prove baselines are persisting.
+    """
+    for path in _state_paths():
+        try:
+            parent = os.path.dirname(path)
+            if not parent:
+                continue
+            os.makedirs(parent, exist_ok=True)
+            probe = path + ".probe"
+            with open(probe, "w") as f:
+                f.write("")
+            os.remove(probe)
+            return "lakehouse" if path == _LAKEHOUSE_PATH else "home"
+        except Exception:
+            continue
+    return "memory"
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -54,17 +97,18 @@ def _now_iso() -> str:
 def load_state() -> dict[str, Any] | None:
     """Return persisted state, or None if unavailable.
 
-    We try the default-lakehouse path first. If it doesn't exist or can't
-    be read, we return None and the caller treats the run as a first run.
+    Reads from the lakehouse path first; falls back to ~/.pq-adbc-advisor
+    (v0.3.4) so local dev runs preserve first-run baselines too.
     """
-    try:
-        if os.path.exists(_LAKEHOUSE_PATH):
-            with open(_LAKEHOUSE_PATH, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if isinstance(data, dict) and data.get("schema_version") == STATE_SCHEMA_VERSION:
-                return data
-    except Exception:
-        pass
+    for path in _state_paths():
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict) and data.get("schema_version") == STATE_SCHEMA_VERSION:
+                    return data
+        except Exception:
+            continue
     return None
 
 
@@ -77,7 +121,7 @@ def is_telemetry_opted_out() -> bool:
 def set_telemetry_opt_out(opt_out: bool) -> bool:
     """Persist an opt-out flag alongside first-run baseline state.
 
-    Returns True on successful write to the lakehouse.
+    Returns True on successful write.
     """
     existing = load_state() or {
         "schema_version": STATE_SCHEMA_VERSION,
@@ -93,35 +137,68 @@ def set_telemetry_opt_out(opt_out: bool) -> bool:
 
 
 def save_state(state: dict[str, Any]) -> bool:
-    """Persist state to the default lakehouse. Return True on success.
+    """Persist state to the first writable backend. Return True on success.
 
-    v0.2.4: adds a POSIX advisory lock so concurrent scans (two notebooks
-    against the same workspace) do not race and clobber each other's
-    first-run snapshot. Windows has no fcntl; we rely on the atomic
-    rename instead.
+    v0.2.4: adds a POSIX advisory lock so concurrent scans don't race.
+    v0.3.4: on lakehouse failure, silently falls back to
+    ``~/.pq-adbc-advisor/state.json`` and prints a one-time warning so
+    users understand telemetry baselines are still being preserved (just
+    outside the lakehouse). If BOTH backends fail, prints a clearer
+    warning and returns False — the caller degrades to in-memory only,
+    so subsequent scans in the same kernel keep incrementing run_count
+    but a kernel restart resets to first_run=True.
     """
-    tmp_path = _LAKEHOUSE_PATH + ".tmp"
-    try:
-        os.makedirs(os.path.dirname(_LAKEHOUSE_PATH), exist_ok=True)
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            try:
-                import fcntl  # Unix only
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            except (ImportError, OSError):
-                # fcntl unavailable (Windows) or not supported on this FS.
-                # Atomic rename below is still race-safe on POSIX.
-                pass
-            json.dump(state, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_path, _LAKEHOUSE_PATH)
-        return True
-    except Exception:
+    for path in _state_paths():
         try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
-        return False
+            parent = os.path.dirname(path)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            tmp_path = path + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                try:
+                    import fcntl  # Unix only
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                except (ImportError, OSError):
+                    pass
+                json.dump(state, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, path)
+            if path != _LAKEHOUSE_PATH:
+                _warn_once_home_fallback(path)
+            return True
+        except Exception:
+            # Try the next backend.
+            try:
+                os.remove(path + ".tmp")
+            except OSError:
+                pass
+            continue
+
+    _warn_once_no_backend()
+    return False
+
+
+def _warn_once_home_fallback(path: str) -> None:
+    if getattr(_warn_once_home_fallback, "_printed", False):
+        return
+    _warn_once_home_fallback._printed = True  # type: ignore[attr-defined]
+    print(
+        f"[pq-adbc-advisor] No default lakehouse detected — persisting "
+        f"telemetry baseline to {path}. This keeps 'improvement over "
+        f"time' metrics working on local / CI runs."
+    )
+
+
+def _warn_once_no_backend() -> None:
+    if getattr(_warn_once_no_backend, "_printed", False):
+        return
+    _warn_once_no_backend._printed = True  # type: ignore[attr-defined]
+    print(
+        "[pq-adbc-advisor] Could not persist state to /lakehouse/ or "
+        "~/.pq-adbc-advisor/. Telemetry will report is_first_run=True on "
+        "every scan until a writable location is available."
+    )
 
 
 def compute_run_state(current_counts: dict[str, Any], run_id: str) -> dict[str, Any]:
@@ -177,10 +254,15 @@ def compute_run_state(current_counts: dict[str, Any], run_id: str) -> dict[str, 
 
 
 def reset_state() -> bool:
-    """Delete the persisted state file so the next scan is a "first run" again."""
-    try:
-        if os.path.exists(_LAKEHOUSE_PATH):
-            os.remove(_LAKEHOUSE_PATH)
-        return True
-    except Exception:
-        return False
+    """Delete persisted state from every backend so the next scan is a
+    "first run" again. Returns True when at least one file was removed
+    or nothing was found to remove (both mean "state is clean now").
+    """
+    ok = True
+    for path in _state_paths():
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            ok = False
+    return ok
