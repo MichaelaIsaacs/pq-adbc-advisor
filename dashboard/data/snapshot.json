@@ -1,16 +1,206 @@
 {
-  "generated_at": "2026-09-01T13:29:10Z",
+  "generated_at": "2026-09-01T14:49:22Z",
   "repo": "MichaelaIsaacs/pq-adbc-advisor",
-  "reach": {},
-  "resolution": {},
-  "value": {},
-  "trend": [],
-  "versions": [],
-  "per_workspace": [],
-  "skip_reasons": [],
-  "state_backends": [],
-  "first_vs_return": [],
-  "github": {},
+  "reach": {
+    "scans": 15,
+    "workspaces": 7,
+    "tenants": 1
+  },
+  "resolution": {
+    "resolved_pinned": 2,
+    "resolved_high": 2,
+    "resolved_medium": 0,
+    "resolved_custom_dsn": 0,
+    "return_scans": 3
+  },
+  "value": {
+    "hours_saved": 0.3,
+    "inspected": 6,
+    "median_coverage": 60,
+    "sempy_used_pct": 13.333333333333334
+  },
+  "trend": [
+    {
+      "timestamp": "2026-08-18T00:00:00Z",
+      "scans": 5,
+      "workspaces": 2
+    },
+    {
+      "timestamp": "2026-08-20T00:00:00Z",
+      "scans": 4,
+      "workspaces": 1
+    },
+    {
+      "timestamp": "2026-08-24T00:00:00Z",
+      "scans": 2,
+      "workspaces": 2
+    },
+    {
+      "timestamp": "2026-08-31T00:00:00Z",
+      "scans": 4,
+      "workspaces": 3
+    }
+  ],
+  "versions": [
+    {
+      "version": "0.3.6",
+      "scans": 2,
+      "workspaces": 2
+    },
+    {
+      "version": "0.3.5",
+      "scans": 2,
+      "workspaces": 1
+    },
+    {
+      "version": "0.3.3",
+      "scans": 2,
+      "workspaces": 2
+    },
+    {
+      "version": "0.3.0",
+      "scans": 1,
+      "workspaces": 1
+    },
+    {
+      "version": "0.2.2",
+      "scans": 3,
+      "workspaces": 1
+    },
+    {
+      "version": "0.2.1",
+      "scans": 5,
+      "workspaces": 2
+    }
+  ],
+  "per_workspace": [
+    {
+      "workspace": "smoke_8e51f5e5deb1",
+      "timestamp": "2026-08-31T18:45:30Z",
+      "is_first": "False",
+      "run_count": 2,
+      "first_pinned": 3,
+      "current_pinned": 1,
+      "resolved_pinned": 2,
+      "coverage": 33,
+      "version": "0.3.5"
+    },
+    {
+      "workspace": "v036-bugbashed-ws",
+      "timestamp": "2026-08-31T20:32:54Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 1,
+      "current_pinned": 1,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "v036-smoke-ws",
+      "timestamp": "2026-08-31T20:28:35Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 1,
+      "current_pinned": 1,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "4e70507f-c8cb-4552-88d1-cd4e06ce2d5a",
+      "timestamp": "2026-08-24T23:23:26Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 2,
+      "current_pinned": 2,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.3.3"
+    },
+    {
+      "workspace": "(tenant)",
+      "timestamp": "2026-08-24T23:02:28Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.3.3"
+    },
+    {
+      "workspace": "smoke-test-ws-guid-11111111",
+      "timestamp": "2026-08-18T20:07:36Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.2.1"
+    },
+    {
+      "workspace": "smoke-test-persistent-ws-22222",
+      "timestamp": "2026-08-18T20:12:04Z",
+      "is_first": "False",
+      "run_count": 3,
+      "first_pinned": 2,
+      "current_pinned": 0,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.2.1"
+    }
+  ],
+  "skip_reasons": [
+    {
+      "reason": "deleted_during_scan",
+      "count": 2
+    }
+  ],
+  "state_backends": [
+    {
+      "backend": "",
+      "scans": 11
+    },
+    {
+      "backend": "home",
+      "scans": 4
+    }
+  ],
+  "first_vs_return": [
+    {
+      "is_first_run": "True",
+      "scans": 12
+    },
+    {
+      "is_first_run": "False",
+      "scans": 3
+    }
+  ],
+  "github": {
+    "clones_14d": "148",
+    "unique_cloners_14d": "46",
+    "views_14d": "58",
+    "unique_viewers_14d": "5",
+    "top_referrer_1": "github.com",
+    "top_referrer_1_count": "6",
+    "release_downloads_v0_3_1": "0",
+    "release_downloads_v0_3_0": "0",
+    "release_downloads_v0_2_4": "0",
+    "release_downloads_v0_2_3": "0",
+    "release_downloads_v0_2_2": "0",
+    "release_downloads_v0_2_1": "0",
+    "total_release_downloads": "0",
+    "release_count": "6",
+    "stargazers": "0",
+    "forks": "0",
+    "open_issues": "7",
+    "subscribers": "0",
+    "repo": "MichaelaIsaacs/pq-adbc-advisor",
+    "source": "github_traffic_daily",
+    "run_id": "f1835f0b020d4412b3020160ec6971ea"
+  },
   "releases": [
     {
       "tag": "v0.3.1",
