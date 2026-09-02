@@ -42,6 +42,11 @@ class ImpactedArtifact:
     hits: list[ConnectorCall]           # ALL connector calls (migrating + not)
     has_gateway: bool | None = None
     workspace_name: str = ""
+    # v0.3.2: sovereign cloud + My Workspace awareness.
+    # None means "read env / commercial default" so existing callers
+    # keep the same behavior.
+    is_personal: bool = False
+    cloud: str | None = None
 
     @property
     def worst_risk(self) -> str:
@@ -62,9 +67,12 @@ class ImpactedArtifact:
         return any(h.is_migrating for h in self.hits)
 
     def fabric_portal_url(self) -> str:
-        """Return a Fabric portal deep-link for this artifact (v0.3.1)."""
+        """Return a Fabric portal deep-link for this artifact (v0.3.1; sovereign-aware v0.3.2)."""
         from .constants import fabric_portal_url
-        return fabric_portal_url(self.workspace_id, self.item_id, self.item_type)
+        return fabric_portal_url(
+            self.workspace_id, self.item_id, self.item_type,
+            cloud=self.cloud, is_personal=self.is_personal,
+        )
 
 
 @dataclass
@@ -708,14 +716,18 @@ class ImpactReport:
             t: n for t, n in self.observed_types.items()
             if t not in inspected_types and t not in known_uninspected
         }
-        total_items = sum(self.observed_types.values()) or 1
+        # v0.3.5 Bug 8 fix: an empty workspace should report 100% coverage,
+        # not 0%. The old ``sum(...) or 1`` idiom made the ``else 100``
+        # branch unreachable and empty workspaces looked like uncovered
+        # scans in KQL. Now: empty observed_types → 100% (nothing to miss).
+        raw_total = sum(self.observed_types.values())
         inspected_items = sum(inspected.values())
-        score = round(100 * inspected_items / total_items) if total_items else 100
+        score = round(100 * inspected_items / raw_total) if raw_total else 100
         return {
             "inspected_types": inspected,
             "not_inspected_types": not_inspected,
             "other_types": other,
-            "total_items": sum(self.observed_types.values()),
+            "total_items": raw_total,
             "inspected_items": inspected_items,
             "score_pct": score,
         }

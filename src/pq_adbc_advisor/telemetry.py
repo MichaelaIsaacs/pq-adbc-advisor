@@ -155,15 +155,20 @@ def telemetry_status() -> dict[str, Any]:
     """Return a dict describing the current telemetry configuration.
 
     Useful for the customer to check what the tool is doing before they
-    trust the opt-out choice.
+    trust the opt-out choice. v0.3.5 also exposes the last-send status
+    so corporate-proxy / throttled-ikey issues surface without a debug
+    session.
     """
     resolved = _resolve_connection()
+    history = get_send_history()
     return {
         "endpoint_configured": resolved is not None,
         "resource": "appi-fabric-migration-scanner" if resolved else None,
         "env_var_off": os.environ.get("PQ_ADBC_ADVISOR_TELEMETRY", "").lower() in ("off", "0", "false"),
         "persistent_opt_out": _state.is_telemetry_opted_out(),
         "effectively_enabled": _telemetry_enabled(True),
+        "last_send": history[-1] if history else None,
+        "recent_send_statuses": [h["status"] for h in history[-5:]],
     }
 
 
@@ -181,7 +186,7 @@ _FIRST_RUN_NOTICE = (
     "\n"
     "  Never sent: M code, item/workspace names, endpoint URLs, credentials,\n"
     "  refresh error message bodies, gateway names, or dataset IDs.\n"
-    "  Tenant ID is SHA-256 hashed by default (12 hex chars).\n"
+    "  Tenant AND user IDs are SHA-256 hashed by default (12 hex chars).\n"
     "\n"
     "  To disable at any time (persists across kernel restarts):\n"
     "    from pq_adbc_advisor import disable_telemetry\n"
@@ -224,6 +229,55 @@ def _tenant_id() -> str:
         return ""
 
 
+def _user_id() -> tuple[str, str]:
+    """v0.3.6: best-effort AAD user identity + provenance for unique-user counting.
+
+    Returns a ``(user_id, source)`` tuple where source is one of:
+      * ``"aad"``  — resolved from notebookutils.runtime.context (trustworthy)
+      * ``"env"``  — resolved from PQ_ADBC_ADVISOR_USER_ID env var
+                     (untrusted; users can set this to inflate/deflate the
+                     unique-user KPI)
+      * ``""``     — no identity resolved
+
+    v0.3.6 hardening (post-bug-bash):
+
+    Bug 1 fix — REFUSE to fall back past `userId`/`UserId`. UPN/email in
+      `userName` is deanonymizable via rainbow table against a tenant's
+      public directory. Only high-entropy AAD GUIDs get hashed.
+    Bug 3 fix — try/except is per-key so a hiccup on one key doesn't
+      collapse the entire chain to the env-var branch.
+    Bug 4 fix — value normalization (`.strip()`) so the same person can't
+      hash to two different values because of trailing whitespace.
+    Bug 5 fix — env var is ONLY consulted when notebookutils isn't
+      importable at all. Prevents a hostile lakehouse notebook from
+      shadowing the real AAD user. Env-var source is tagged so the
+      KQL dashboard can filter to `user_hash_source == "aad"` only.
+    """
+    try:
+        import notebookutils  # type: ignore
+        ctx = getattr(notebookutils.runtime, "context", None)
+        if ctx is not None:
+            get = ctx.get if callable(getattr(ctx, "get", None)) else lambda *_: ""
+            # Only trust high-entropy AAD object GUIDs. Do NOT fall back
+            # to userName/UPN (Bug 1) — those are enumerable.
+            for key in ("userId", "UserId"):
+                try:
+                    v = (get(key, "") or "").strip()
+                except Exception:
+                    continue
+                if v:
+                    return (v, "aad")
+        # notebookutils WAS importable but produced no id — do NOT
+        # silently switch to the env-var branch (Bug 5). Return empty.
+        return ("", "")
+    except Exception:
+        # notebookutils is not importable — local dev / CI path.
+        env_v = os.environ.get("PQ_ADBC_ADVISOR_USER_ID", "").strip()
+        if env_v:
+            return (env_v, "env")
+        return ("", "")
+
+
 def _tenant_hash(tenant_id: str) -> str:
     """SHA-256 first 12 hex chars, matches the spec's tenant_hash field."""
     if not tenant_id:
@@ -231,18 +285,93 @@ def _tenant_hash(tenant_id: str) -> str:
     return hashlib.sha256(tenant_id.encode()).hexdigest()[:12]
 
 
+def _user_hash(user_id: str) -> str:
+    """v0.3.6: SHA-256 first 12 hex chars of the AAD user identifier.
+
+    Empty string when we can't resolve a user (Fabric runtime not
+    available, env var not set). Empty user_hash means "unknown" for the
+    dcount() query — those rows still count as a scan but not as a
+    distinct user.
+    """
+    if not user_id:
+        return ""
+    return hashlib.sha256(user_id.strip().encode()).hexdigest()[:12]
+
+
+def _send_raw_user() -> bool:
+    """True when we should send the raw AAD user id alongside user_hash.
+
+    Off by default (privacy). Opt-in flag mirrors PQ_ADBC_ADVISOR_TENANT_RAW.
+
+    v0.3.6 (bug bash Bug 2): when this is on, the emitted event carries
+    ONLY the raw user_id (as `user_id`) and OMITS `user_hash` — otherwise
+    anyone with historical App Insights read would be able to build a
+    permanent {user_hash → user_id} lookup and retroactively deanonymize
+    every prior scan_complete row.
+    """
+    return os.environ.get("PQ_ADBC_ADVISOR_USER_RAW", "").lower() in ("1", "on", "true")
+
+
+# --------------------------------------------------------------------------- #
+# Session identity (v0.3.4)
+# --------------------------------------------------------------------------- #
+# One notebook can run scan_workspace(), then validate_migration(), then
+# scan_workspace() again. All three should share a session_id so we can
+# tell "unique scans" apart from "one session, three phases" in KQL.
+_SESSION_ID = uuid.uuid4().hex
+
+
+def session_id() -> str:
+    return _SESSION_ID
+
+
+# --------------------------------------------------------------------------- #
+# Value-story helpers (v0.3.4)
+# --------------------------------------------------------------------------- #
+# Every field below answers the question "why is this tool worth the
+# session cost?". We only send derived numbers, never M code or names.
+#
+# _MANUAL_TRIAGE_MIN_PER_ARTIFACT reflects the PM team's assumption for
+# per-artifact manual triage (open item, inspect definition, cross-check
+# gateway binding). It's conservative on purpose; the KQL narrative is
+# "we scanned N artifacts in D seconds vs an estimated N * this-many
+# minutes if the customer had triaged by hand".
+_MANUAL_TRIAGE_MIN_PER_ARTIFACT = 3
+
+
+def _estimated_manual_hours_saved(artifacts_scanned: int) -> float:
+    return round((artifacts_scanned * _MANUAL_TRIAGE_MIN_PER_ARTIFACT) / 60.0, 2)
+
+
 def _base_properties(tenant_id: str, workspace_id: str, run_id: str, duration: float) -> dict[str, Any]:
+    user_id, user_source = _user_id()  # v0.3.6 — headline "how many people" KPI
     props: dict[str, Any] = {
         "version": TOOL_VERSION,
         "surface": "notebook",  # spec-defined values: notebook | cli_fabric | cli_pbix | external_tool
         "mode": "diagnose",     # v0 is diagnose-only
         "tenant_hash": _tenant_hash(tenant_id),
+        # v0.3.6 Bug 2 fix — send hash XOR raw, never both. Preserves the
+        # user_hash contract on 99.99% of events while opt-in-raw callers
+        # still get their join key.
+        # v0.3.6 Bug 5 fix — provenance tag so KQL can filter to only
+        # trustworthy AAD-sourced hashes for the unique-user KPI.
         "workspace_id": workspace_id or "",
         "run_id": run_id,
+        "session_id": _SESSION_ID,  # v0.3.4 — same across scan+validate in one kernel
+        "state_backend": _state.state_backend(),  # v0.3.4 — lakehouse | home | memory
         "duration_seconds": round(duration, 2),
         "python": platform.python_version(),
         "platform": platform.system(),
+        "user_hash_source": user_source,  # "aad" | "env" | ""
     }
+    if _send_raw_user() and user_id:
+        # Opt-in raw user id, mirroring the tenant_id escape hatch.
+        # We deliberately DO NOT include user_hash on the same event —
+        # otherwise the pair permanently deanonymizes every previously
+        # emitted user_hash row.
+        props["user_id"] = user_id
+    else:
+        props["user_hash"] = _user_hash(user_id)
     if _send_raw_tenant() and tenant_id:
         # Opt-in field so Michaela can join to MSSales for TPID.
         props["tenant_id"] = tenant_id
@@ -295,7 +424,16 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
     }
 
     run_id = uuid.uuid4().hex
-    combined = _state.compute_run_state(current, run_id)
+    tenant_id = _tenant_id()
+    workspace_id = report.workspace_id or ""
+    # v0.3.5 Bug 2 fix — pass workspace/tenant identity to compute_run_state
+    # so the home-fallback baseline is stored per-workspace instead of a
+    # single machine-wide file that shadows every other workspace scan.
+    combined = _state.compute_run_state(
+        current, run_id,
+        workspace_id=workspace_id,
+        tenant_hash=_tenant_hash(tenant_id),
+    )
 
     # Notify the customer on their FIRST scan of a given workspace.
     # This is our privacy-notification hook (David Coe review): before the
@@ -303,18 +441,39 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
     # and how to opt out.
     _maybe_print_first_run_notice(bool(combined.get("is_first_run", False)))
 
-    tenant_id = _tenant_id()
-    workspace_id = report.workspace_id or ""
-
     # Spec-compatible fields (event name + field names from the spec) FIRST.
     props = _base_properties(tenant_id, workspace_id, run_id, duration_seconds)
+    inspected_artifacts = len(report.artifacts)
+    artifacts_scanned = inspected_artifacts + len(report.skipped)
     props.update({
-        "artifacts_scanned": len(report.artifacts) + len(report.skipped),
+        "artifacts_scanned": artifacts_scanned,
+        "inspected_artifacts": inspected_artifacts,  # v0.3.5 Bug 7 fix
         "impacted_count": migrating_artifacts,
         "odbc_pinned_count": pinned_odbc,
         "odbc_pinned_at_risk_count": pinned_at_risk,
         "scope": report.scope,
     })
+    # v0.3.4 value-story fields:
+    #   coverage_score_pct   — how much of the workspace we could inspect
+    #   sempy_hits           — how many items used the fast path
+    #   sempy_used           — whether the sempy fast path was on
+    #   skipped_by_reason_*  — one field per skip reason so KQL can chart
+    #                          "what actually blocks a clean scan"
+    #   estimated_manual_hours_saved — value narrative for leadership
+    try:
+        coverage = report.coverage()
+        props["coverage_score_pct"] = coverage.get("score_pct", 0)
+    except Exception:
+        props["coverage_score_pct"] = 0
+    props["sempy_hits"] = getattr(report, "sempy_hits", 0)
+    props["sempy_used"] = bool(getattr(report, "used_sempy_path", False))
+    # v0.3.5 Bug 7 fix: hours-saved credits inspected items ONLY. Skipped
+    # items (permission_denied, deleted, non-inspectable types) produced
+    # no diagnostic value, so the tool cannot claim to have saved manual
+    # triage time on them.
+    props["estimated_manual_hours_saved"] = _estimated_manual_hours_saved(inspected_artifacts)
+    for reason, count in report.skipped_by_reason().items():
+        props[f"skipped_by_reason_{_safe_key(reason)}"] = count
     # Spec's ``impacts_by_connector`` field, flattened as one property per
     # connector so the KQL ``mv-expand impacts_by_connector`` query works
     # against ``customDimensions``.
@@ -323,10 +482,12 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
 
     # Extra improvement-over-time fields (not in the spec's original
     # contract but strictly additive so old queries still work).
+    is_first_run = bool(combined.get("is_first_run", True))
+    first_run_at = combined.get("first_run_at", "") or ""
     props.update({
         "run_count": combined.get("run_count", 1),
-        "is_first_run": combined.get("is_first_run", True),
-        "first_run_at": combined.get("first_run_at", ""),
+        "is_first_run": is_first_run,
+        "first_run_at": first_run_at,
         "first_risk_high": combined.get("first_risk_high", 0),
         "first_risk_medium": combined.get("first_risk_medium", 0),
         "first_pinned_odbc": combined.get("first_pinned_odbc", 0),
@@ -343,6 +504,58 @@ def emit_scan_summary(report, enabled: bool, duration_seconds: float = 0.0) -> N
     })
     for kind, count in (combined.get("first_counts_by_connector", {}) or {}).items():
         props[f"first_impacts_by_connector_{_safe_key(kind)}"] = count
+
+    # v0.3.5 — leadership resolution metrics
+    #
+    # These are the KQL money-shot fields: one-line "how much have they
+    # cleaned up since scan #1?" charts, computed here so nobody has to
+    # subtract in Kusto and nobody has to unpack per-connector fields
+    # side by side. Values can go NEGATIVE when a workspace grows
+    # (new pinned models added AFTER the baseline) — we send the signed
+    # delta so leadership charts distinguish "progress" from "regress".
+    props["resolved_risk_high"] = (
+        int(combined.get("first_risk_high", 0)) - current["risk_high"]
+    )
+    props["resolved_risk_medium"] = (
+        int(combined.get("first_risk_medium", 0)) - current["risk_medium"]
+    )
+    props["resolved_pinned_odbc"] = (
+        int(combined.get("first_pinned_odbc", 0)) - current["pinned_odbc"]
+    )
+    props["resolved_custom_dsn"] = (
+        int(combined.get("first_custom_dsn", 0)) - current["custom_dsn"]
+    )
+    props["resolved_migrating_artifacts"] = (
+        int(combined.get("first_migrating_artifacts", 0)) - current["migrating_artifacts"]
+    )
+    # Per-connector deltas so KQL can chart "Snowflake resolutions per week"
+    # in one line without unpacking baseline + current side by side.
+    first_by_kind = dict(combined.get("first_counts_by_connector", {}) or {})
+    all_kinds = set(first_by_kind) | set(counts_by_connector)
+    for kind in all_kinds:
+        first_n = int(first_by_kind.get(kind, 0))
+        curr_n = int(counts_by_connector.get(kind, 0))
+        props[f"resolved_by_connector_{_safe_key(kind)}"] = first_n - curr_n
+
+    # v0.3.5 — time_to_second_scan_days
+    #
+    # Proves iterative use. On first run this is empty. On subsequent
+    # runs it's the days between now and the persisted first_run_at.
+    # We only compute this once (on run #2) so leadership charts have
+    # a clean cohort metric; later runs still send it so a query can
+    # bucket by "second-scan latency" without joins.
+    if not is_first_run and first_run_at:
+        try:
+            from datetime import datetime as _dt
+            first_dt = _dt.fromisoformat(first_run_at.replace("Z", "+00:00"))
+            now_dt = _dt.fromisoformat(_state._now_iso().replace("Z", "+00:00"))
+            days = (now_dt - first_dt).total_seconds() / 86400.0
+            # Guard against clock skew producing negatives.
+            props["time_since_first_scan_days"] = round(max(days, 0.0), 2)
+        except (ValueError, TypeError):
+            props["time_since_first_scan_days"] = ""
+    else:
+        props["time_since_first_scan_days"] = ""
 
     _post("scan_complete", props)
 
@@ -391,10 +604,54 @@ def _safe_key(name: str) -> str:
     return "".join(c if (c.isalnum() or c == "_") else "_" for c in name)
 
 
+# --------------------------------------------------------------------------- #
+# _post observability (v0.3.5 Bug 9 fix)
+# --------------------------------------------------------------------------- #
+# A silent _post is worse than no _post: the PM team can't tell a
+# throttled ikey, a captive-portal proxy, or a regional 5xx from a happy
+# send. We now:
+#   * Inspect status_code and reject captive-portal HTML bodies.
+#   * Retry ONCE on 429 / 503.
+#   * Record every attempt's outcome in a bounded ring buffer that
+#     telemetry_status() exposes so users can debug corporate proxies.
+
+_SEND_HISTORY_CAP = 20
+_SEND_HISTORY: list[dict[str, Any]] = []
+_SEND_HISTORY_LOCK = __import__("threading").Lock()
+
+
+def _record_send(status: str, detail: str = "") -> None:
+    entry = {"at": _state._now_iso(), "status": status, "detail": detail[:200]}
+    with _SEND_HISTORY_LOCK:
+        _SEND_HISTORY.append(entry)
+        if len(_SEND_HISTORY) > _SEND_HISTORY_CAP:
+            del _SEND_HISTORY[: len(_SEND_HISTORY) - _SEND_HISTORY_CAP]
+
+
+def get_send_history() -> list[dict[str, Any]]:
+    """Snapshot of the last ~20 send attempts (v0.3.5).
+
+    Each entry: ``{"at": iso_utc, "status": str, "detail": str}``.
+    Status values: ``"ok"``, ``"retried_ok"``, ``"http_<code>"``,
+    ``"captive_portal"``, ``"network"``, ``"disabled"``.
+    """
+    with _SEND_HISTORY_LOCK:
+        return list(_SEND_HISTORY)
+
+
+def _looks_like_captive_portal(body: str) -> bool:
+    """Corporate proxies love returning a 200 + HTML login page."""
+    if not body:
+        return False
+    head = body[:2048].lower()
+    return "<html" in head or "<!doctype html" in head
+
+
 def _post(event_name: str, properties: dict[str, Any]) -> None:
-    """Fire-and-forget POST to Application Insights. Never raises."""
+    """Send one event to Application Insights with retry + observability."""
     resolved = _resolve_connection()
     if resolved is None:
+        _record_send("disabled", "no ikey resolved")
         return
     ikey, endpoint = resolved
 
@@ -411,15 +668,52 @@ def _post(event_name: str, properties: dict[str, Any]) -> None:
             },
         },
     }
-    try:
-        requests.post(
-            endpoint,
-            data=json.dumps(envelope),
-            headers={"Content-Type": "application/json"},
-            timeout=5,
+    body = json.dumps(envelope)
+    headers = {"Content-Type": "application/json"}
+
+    # First attempt.
+    r = _try_send(endpoint, body, headers)
+    if r is None:
+        # Network failure — retry once to absorb transient DNS blips.
+        r = _try_send(endpoint, body, headers)
+        if r is None:
+            _record_send("network", "requests raised twice in a row")
+            return
+        _record_send("retried_ok" if 200 <= r.status_code < 300 else f"http_{r.status_code}")
+        return
+
+    # HTTP response — classify.
+    if r.status_code in (429, 503):
+        r2 = _try_send(endpoint, body, headers)
+        if r2 is not None and 200 <= r2.status_code < 300:
+            _record_send("retried_ok", f"first={r.status_code}")
+            return
+        _record_send(
+            f"http_{r.status_code}",
+            f"retry {'also failed' if r2 is None else 'returned ' + str(r2.status_code)}",
         )
+        return
+
+    if 200 <= r.status_code < 300:
+        # 200 from a captive portal is a hidden failure.
+        try:
+            text_head = (r.text or "")[:2048]
+        except Exception:
+            text_head = ""
+        if _looks_like_captive_portal(text_head):
+            _record_send("captive_portal", "HTML body in a 2xx response")
+            return
+        _record_send("ok")
+        return
+
+    _record_send(f"http_{r.status_code}", (getattr(r, "text", "") or "")[:200])
+
+
+def _try_send(endpoint: str, body: str, headers: dict[str, str]):
+    try:
+        return requests.post(endpoint, data=body, headers=headers, timeout=5)
     except Exception:
-        pass
+        return None
 
 
 # --------------------------------------------------------------------------- #

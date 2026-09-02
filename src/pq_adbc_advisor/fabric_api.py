@@ -214,10 +214,24 @@ def get_item_definition(
     if r is None:
         return None
     if r.status_code == 400:
-        # Unsupported item type or unsupported format -> treat as no-def.
         return None
     if r.status_code == 202:
         return _await_lro(r, access_token)
+    if r.status_code in (401, 403):
+        # v0.3.2 (gap 5): permission-denied on a single item must be
+        # distinguishable so the report can tell users "you don't have
+        # rights to inspect X" instead of a generic definition_unavailable.
+        # Discovery catches this and records skip_reason="permission_denied".
+        raise PermissionError(
+            f"HTTP {r.status_code} on getDefinition for {workspace_id}/{item_id}"
+        )
+    if r.status_code == 404:
+        # v0.3.3 (bug bash #8): artifact was deleted between enumeration
+        # and inspection. Distinguish this from a generic 400/500 so the
+        # report shows "deleted during scan" instead of a scary "unavailable".
+        raise FileNotFoundError(
+            f"HTTP 404 on getDefinition for {workspace_id}/{item_id}"
+        )
     if r.status_code >= 400:
         return None
     return r.json()
@@ -350,6 +364,70 @@ def get_refresh_history(workspace_id: str, dataset_id: str, access_token: str, t
     if r is None or r.status_code >= 400:
         return []
     return r.json().get("value", [])
+
+
+def get_dataflow_refresh_history(
+    workspace_id: str, dataflow_id: str, access_token: str, top: int = 5
+) -> list[dict]:
+    """Return recent refresh entries for a Dataflow Gen2 item.
+
+    v0.3.3 (bug bash #2): the semantic-model refresh endpoint
+    (``/datasets/{id}/refreshes``) returns 4xx for Dataflow items, which
+    the caller currently swallows silently — a validation pass against a
+    DFG2 sees an empty history and reports "no new refresh" forever.
+
+    Fabric Dataflow Gen2 uses the Job Scheduler API instead. We call it
+    here and normalize each entry to the same shape validation.py expects
+    from datasets: ``{requestId, status, startTime, endTime,
+    serviceExceptionJson}``.
+    """
+    url = (
+        f"{_FABRIC_API}/workspaces/{workspace_id}/items/{dataflow_id}"
+        f"/jobs/instances?jobType=Refresh"
+    )
+    r = _request_with_retry("GET", url, headers=_bearer(access_token))
+    if r is None or r.status_code >= 400:
+        return []
+    try:
+        raw = r.json().get("value", [])
+    except ValueError:
+        return []
+    normalized: list[dict] = []
+    for entry in raw[:top]:
+        failure = entry.get("failureReason") or {}
+        exc_json = None
+        if isinstance(failure, dict):
+            exc_json = failure.get("message") or failure.get("errorCode")
+        elif isinstance(failure, str):
+            exc_json = failure
+        normalized.append({
+            "requestId": entry.get("id"),
+            "status": entry.get("status"),
+            "startTime": entry.get("startTimeUtc"),
+            "endTime": entry.get("endTimeUtc"),
+            "serviceExceptionJson": exc_json,
+        })
+    return normalized
+
+
+def get_refresh_history_for_item(
+    workspace_id: str,
+    item_id: str,
+    access_token: str,
+    item_type: str,
+    top: int = 5,
+) -> list[dict]:
+    """Route to the correct refresh-history endpoint for the item type.
+
+    Semantic models / datasets use the PBI datasets API; Dataflow Gen2
+    items use the Fabric Job Scheduler. Anything else returns [] so
+    callers see "no history" instead of a hard error.
+    """
+    if item_type in ("SemanticModel", "Dataset"):
+        return get_refresh_history(workspace_id, item_id, access_token, top=top)
+    if item_type == "Dataflow":
+        return get_dataflow_refresh_history(workspace_id, item_id, access_token, top=top)
+    return []
 
 
 def get_dataset_gateway(workspace_id: str, dataset_id: str, access_token: str) -> str | tuple[None, str] | None:

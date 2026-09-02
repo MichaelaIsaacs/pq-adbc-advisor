@@ -12,7 +12,11 @@ from pq_adbc_advisor.report import ImpactReport, ImpactedArtifact
 
 @pytest.fixture(autouse=True)
 def _isolate(monkeypatch, tmp_path):
+    # v0.3.5: full path isolation (baseline + opt-out + legacy shims).
     monkeypatch.setattr(_state, "_LAKEHOUSE_PATH", str(tmp_path / "state.json"))
+    monkeypatch.setattr(_state, "_LAKEHOUSE_OPT_OUT", str(tmp_path / "opt_out.json"))
+    monkeypatch.setattr(_state, "_HOME_DIR", str(tmp_path / "home"))
+    monkeypatch.setattr(_state, "_home_fallback_path", lambda: str(tmp_path / "home" / "state.json"))
     monkeypatch.setattr(
         _telemetry, "BAKED_IN_CONNECTION_STRING",
         "InstrumentationKey=deadbeef-dead-beef-dead-beefdeadbeef;"

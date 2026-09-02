@@ -1,0 +1,321 @@
+{
+  "generated_at": "2026-08-31T20:33:40Z",
+  "repo": "MichaelaIsaacs/pq-adbc-advisor",
+  "reach": {
+    "scans": 15,
+    "users": 2,
+    "workspaces": 7,
+    "tenants": 1
+  },
+  "resolution": {
+    "resolved_pinned": 2,
+    "resolved_high": 2,
+    "resolved_medium": 0,
+    "resolved_custom_dsn": 0,
+    "return_scans": 3
+  },
+  "value": {
+    "hours_saved": 0.30000000000000004,
+    "inspected": 6,
+    "median_coverage": 60,
+    "sempy_used_pct": 13.333333333333334
+  },
+  "trend": [
+    {
+      "timestamp": "2026-08-18T00:00:00Z",
+      "scans": 5,
+      "workspaces": 2
+    },
+    {
+      "timestamp": "2026-08-20T00:00:00Z",
+      "scans": 4,
+      "workspaces": 1
+    },
+    {
+      "timestamp": "2026-08-24T00:00:00Z",
+      "scans": 2,
+      "workspaces": 2
+    },
+    {
+      "timestamp": "2026-08-31T00:00:00Z",
+      "scans": 4,
+      "workspaces": 3
+    }
+  ],
+  "versions": [
+    {
+      "version": "0.3.6",
+      "scans": 2,
+      "workspaces": 2
+    },
+    {
+      "version": "0.3.5",
+      "scans": 2,
+      "workspaces": 1
+    },
+    {
+      "version": "0.3.3",
+      "scans": 2,
+      "workspaces": 2
+    },
+    {
+      "version": "0.3.0",
+      "scans": 1,
+      "workspaces": 1
+    },
+    {
+      "version": "0.2.2",
+      "scans": 3,
+      "workspaces": 1
+    },
+    {
+      "version": "0.2.1",
+      "scans": 5,
+      "workspaces": 2
+    }
+  ],
+  "per_workspace": [
+    {
+      "workspace": "smoke_8e51f5e5deb1",
+      "timestamp": "2026-08-31T18:45:30Z",
+      "is_first": "False",
+      "run_count": 2,
+      "first_pinned": 3,
+      "current_pinned": 1,
+      "resolved_pinned": 2,
+      "coverage": 33,
+      "version": "0.3.5"
+    },
+    {
+      "workspace": "v036-bugbashed-ws",
+      "timestamp": "2026-08-31T20:32:54Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 1,
+      "current_pinned": 1,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "v036-smoke-ws",
+      "timestamp": "2026-08-31T20:28:35Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 1,
+      "current_pinned": 1,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "(tenant)",
+      "timestamp": "2026-08-24T23:02:28Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.3.3"
+    },
+    {
+      "workspace": "4e70507f-c8cb-4552-88d1-cd4e06ce2d5a",
+      "timestamp": "2026-08-24T23:23:26Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 2,
+      "current_pinned": 2,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.3.3"
+    },
+    {
+      "workspace": "smoke-test-ws-guid-11111111",
+      "timestamp": "2026-08-18T20:07:36Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.2.1"
+    },
+    {
+      "workspace": "smoke-test-persistent-ws-22222",
+      "timestamp": "2026-08-18T20:12:04Z",
+      "is_first": "False",
+      "run_count": 3,
+      "first_pinned": 2,
+      "current_pinned": 0,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.2.1"
+    }
+  ],
+  "skip_reasons": [
+    {
+      "reason": "deleted_during_scan",
+      "count": 2
+    }
+  ],
+  "state_backends": [
+    {
+      "backend": "",
+      "scans": 11
+    },
+    {
+      "backend": "home",
+      "scans": 4
+    }
+  ],
+  "first_vs_return": [
+    {
+      "is_first_run": "True",
+      "scans": 12
+    },
+    {
+      "is_first_run": "False",
+      "scans": 3
+    }
+  ],
+  "github": {
+    "run_id": "02e571f797514ffc9a86fa9c4d5232e0",
+    "clones_14d": 94,
+    "unique_cloners_14d": 37,
+    "views_14d": "58",
+    "unique_viewers_14d": "5",
+    "top_referrer_1": "github.com",
+    "top_referrer_1_count": "6",
+    "release_downloads_v0_3_1": "0",
+    "release_downloads_v0_3_0": "0",
+    "release_downloads_v0_2_4": "0",
+    "release_downloads_v0_2_3": "0",
+    "release_downloads_v0_2_2": "0",
+    "release_downloads_v0_2_1": "0",
+    "total_release_downloads": "0",
+    "release_count": "6",
+    "stargazers": "0",
+    "forks": "0",
+    "open_issues": "4",
+    "subscribers": "0",
+    "repo": "MichaelaIsaacs/pq-adbc-advisor",
+    "source": "github_traffic_daily"
+  },
+  "clones_history": [
+    {
+      "timestamp": "2026-08-17T00:00:00Z",
+      "count": 0,
+      "uniques": 0
+    },
+    {
+      "timestamp": "2026-08-18T00:00:00Z",
+      "count": 13,
+      "uniques": 9
+    },
+    {
+      "timestamp": "2026-08-19T00:00:00Z",
+      "count": 9,
+      "uniques": 6
+    },
+    {
+      "timestamp": "2026-08-20T00:00:00Z",
+      "count": 33,
+      "uniques": 11
+    },
+    {
+      "timestamp": "2026-08-21T00:00:00Z",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "timestamp": "2026-08-22T00:00:00Z",
+      "count": 0,
+      "uniques": 0
+    },
+    {
+      "timestamp": "2026-08-23T00:00:00Z",
+      "count": 2,
+      "uniques": 2
+    },
+    {
+      "timestamp": "2026-08-24T00:00:00Z",
+      "count": 32,
+      "uniques": 11
+    },
+    {
+      "timestamp": "2026-08-25T00:00:00Z",
+      "count": 0,
+      "uniques": 0
+    },
+    {
+      "timestamp": "2026-08-26T00:00:00Z",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "timestamp": "2026-08-27T00:00:00Z",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "timestamp": "2026-08-28T00:00:00Z",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "timestamp": "2026-08-29T00:00:00Z",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "timestamp": "2026-08-30T00:00:00Z",
+      "count": 0,
+      "uniques": 0
+    }
+  ],
+  "releases": [
+    {
+      "tag": "v0.3.1",
+      "name": "v0.3.1: David's UX follow-up",
+      "published": "2026-08-24T16:49:14Z",
+      "downloads": 0,
+      "url": "https://github.com/MichaelaIsaacs/pq-adbc-advisor/releases/tag/v0.3.1"
+    },
+    {
+      "tag": "v0.3.0",
+      "name": "v0.3.0 \u2014 Data Pipelines, SP auth, HTML pagination",
+      "published": "2026-08-20T18:14:58Z",
+      "downloads": 0,
+      "url": "https://github.com/MichaelaIsaacs/pq-adbc-advisor/releases/tag/v0.3.0"
+    },
+    {
+      "tag": "v0.2.4",
+      "name": "v0.2.4 \u2014 Architectural rethink",
+      "published": "2026-08-20T18:14:57Z",
+      "downloads": 0,
+      "url": "https://github.com/MichaelaIsaacs/pq-adbc-advisor/releases/tag/v0.2.4"
+    },
+    {
+      "tag": "v0.2.3",
+      "name": "v0.2.3 \u2014 23-minute-scan perf + UX feedback",
+      "published": "2026-08-20T18:14:56Z",
+      "downloads": 0,
+      "url": "https://github.com/MichaelaIsaacs/pq-adbc-advisor/releases/tag/v0.2.3"
+    },
+    {
+      "tag": "v0.2.2",
+      "name": "v0.2.2 \u2014 David Coe PR review fixes",
+      "published": "2026-08-20T18:14:55Z",
+      "downloads": 0,
+      "url": "https://github.com/MichaelaIsaacs/pq-adbc-advisor/releases/tag/v0.2.2"
+    },
+    {
+      "tag": "v0.2.1",
+      "name": "v0.2.1 \u2014 Initial preview release",
+      "published": "2026-08-20T18:14:54Z",
+      "downloads": 0,
+      "url": "https://github.com/MichaelaIsaacs/pq-adbc-advisor/releases/tag/v0.2.1"
+    }
+  ]
+}

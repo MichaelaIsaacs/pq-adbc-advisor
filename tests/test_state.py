@@ -17,8 +17,11 @@ from pq_adbc_advisor import state as _state
 
 @pytest.fixture(autouse=True)
 def _isolated_state_path(monkeypatch, tmp_path):
-    """Redirect the lakehouse path to a per-test temp file."""
+    """Redirect every state backend to a per-test temp dir (v0.3.5)."""
     monkeypatch.setattr(_state, "_LAKEHOUSE_PATH", str(tmp_path / "state.json"))
+    monkeypatch.setattr(_state, "_LAKEHOUSE_OPT_OUT", str(tmp_path / "opt_out.json"))
+    monkeypatch.setattr(_state, "_HOME_DIR", str(tmp_path / "home"))
+    monkeypatch.setattr(_state, "_home_fallback_path", lambda: str(tmp_path / "home" / "state.json"))
     yield
 
 

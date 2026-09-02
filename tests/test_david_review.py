@@ -172,6 +172,9 @@ def test_hive_diagnosis_recommends_target_connector():
 @pytest.fixture
 def _isolated_state(monkeypatch, tmp_path):
     monkeypatch.setattr(_state, "_LAKEHOUSE_PATH", str(tmp_path / "state.json"))
+    monkeypatch.setattr(_state, "_LAKEHOUSE_OPT_OUT", str(tmp_path / "opt_out.json"))
+    monkeypatch.setattr(_state, "_HOME_DIR", str(tmp_path / "home"))
+    monkeypatch.setattr(_state, "_home_fallback_path", lambda: str(tmp_path / "home" / "state.json"))
     # Reset the process-scoped first-run-notice flag
     if hasattr(_telemetry._maybe_print_first_run_notice, "_printed"):
         delattr(_telemetry._maybe_print_first_run_notice, "_printed")
@@ -179,13 +182,18 @@ def _isolated_state(monkeypatch, tmp_path):
 
 
 def test_disable_telemetry_persists_across_restarts(_isolated_state):
-    """After disable_telemetry(), a fresh load_state() sees the opt-out."""
+    """After disable_telemetry(), a fresh is_telemetry_opted_out() sees the flag.
+
+    v0.3.5: opt-out lives in its own file (not the baseline), so we check
+    the public API rather than the baseline blob directly.
+    """
     assert _state.is_telemetry_opted_out() is False
     _telemetry.disable_telemetry()
     assert _state.is_telemetry_opted_out() is True
-    # Simulate a kernel restart by re-loading
-    reloaded = _state.load_state()
-    assert reloaded and reloaded.get("telemetry_opt_out") is True
+    # Simulate a kernel restart by re-checking through the public API.
+    assert _state.is_telemetry_opted_out() is True
+    # And the baseline is NOT polluted by opt-out data (Bug 1 fix).
+    assert _state.load_state() is None or "telemetry_opt_out" not in _state.load_state()
 
 
 def test_enable_telemetry_clears_opt_out(_isolated_state):
