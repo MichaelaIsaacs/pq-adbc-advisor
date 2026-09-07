@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-06T17:45:19Z",
+  "generated_at": "2026-09-07T20:45:45Z",
   "repo": "MichaelaIsaacs/pq-adbc-advisor",
   "reach": {
-    "scans": 22,
-    "workspaces": 11,
+    "scans": 28,
+    "workspaces": 14,
     "tenants": 1
   },
   "resolution": {
@@ -11,13 +11,13 @@
     "resolved_high": 2,
     "resolved_medium": 0,
     "resolved_custom_dsn": 0,
-    "return_scans": 3
+    "return_scans": 4
   },
   "value": {
-    "hours_saved": 141.40000000000003,
-    "inspected": 2828,
+    "hours_saved": 141.70000000000005,
+    "inspected": 2834,
     "median_coverage": 60,
-    "sempy_used_pct": 31.818181818181817
+    "sempy_used_pct": 46.42857142857143
   },
   "trend": [
     {
@@ -49,13 +49,18 @@
       "timestamp": "2026-09-04T00:00:00Z",
       "scans": 6,
       "workspaces": 4
+    },
+    {
+      "timestamp": "2026-09-07T00:00:00Z",
+      "scans": 6,
+      "workspaces": 3
     }
   ],
   "versions": [
     {
       "version": "0.3.6",
-      "scans": 9,
-      "workspaces": 7
+      "scans": 15,
+      "workspaces": 10
     },
     {
       "version": "0.3.5",
@@ -96,14 +101,14 @@
       "version": "0.3.5"
     },
     {
-      "workspace": "1751cb16-aafa-493b-9cc6-29f4b55b6daf",
-      "timestamp": "2026-09-04T18:34:58Z",
+      "workspace": "d2a25cc1-3553-4375-90df-1953384a1378",
+      "timestamp": "2026-09-04T18:31:50Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 46,
+      "coverage": 36,
       "version": "0.3.6"
     },
     {
@@ -118,17 +123,6 @@
       "version": "0.3.6"
     },
     {
-      "workspace": "33be09e5-e022-4311-9749-e784a1d14875",
-      "timestamp": "2026-09-02T20:19:33Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 60,
-      "version": "0.3.6"
-    },
-    {
       "workspace": "5e7c9c95-5d2d-4593-99da-395f6a5b6b11",
       "timestamp": "2026-09-04T15:48:30Z",
       "is_first": "True",
@@ -140,14 +134,58 @@
       "version": "0.3.6"
     },
     {
-      "workspace": "d2a25cc1-3553-4375-90df-1953384a1378",
-      "timestamp": "2026-09-04T18:31:50Z",
+      "workspace": "a09c94da-ddcf-4cf7-ba24-8c11cfb4d67b",
+      "timestamp": "2026-09-07T06:35:44Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 36,
+      "coverage": 20,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "3a6042e0-191e-4062-988e-640a4df4624d",
+      "timestamp": "2026-09-07T11:20:13Z",
+      "is_first": "False",
+      "run_count": 2,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 60,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "72a01254-ff0e-446e-9bb8-7dcb9105ddbf",
+      "timestamp": "2026-09-07T14:46:25Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 62,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "33be09e5-e022-4311-9749-e784a1d14875",
+      "timestamp": "2026-09-02T20:19:33Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 60,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "1751cb16-aafa-493b-9cc6-29f4b55b6daf",
+      "timestamp": "2026-09-04T18:34:58Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 46,
       "version": "0.3.6"
     },
     {
@@ -173,15 +211,15 @@
       "version": "0.3.6"
     },
     {
-      "workspace": "4e70507f-c8cb-4552-88d1-cd4e06ce2d5a",
-      "timestamp": "2026-08-24T23:23:26Z",
+      "workspace": "smoke-test-ws-guid-11111111",
+      "timestamp": "2026-08-18T20:07:36Z",
       "is_first": "True",
       "run_count": 1,
-      "first_pinned": 2,
-      "current_pinned": 2,
+      "first_pinned": 0,
+      "current_pinned": 0,
       "resolved_pinned": null,
       "coverage": null,
-      "version": "0.3.3"
+      "version": "0.2.1"
     },
     {
       "workspace": "smoke-test-persistent-ws-22222",
@@ -195,33 +233,33 @@
       "version": "0.2.1"
     },
     {
-      "workspace": "smoke-test-ws-guid-11111111",
-      "timestamp": "2026-08-18T20:07:36Z",
+      "workspace": "4e70507f-c8cb-4552-88d1-cd4e06ce2d5a",
+      "timestamp": "2026-08-24T23:23:26Z",
       "is_first": "True",
       "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
+      "first_pinned": 2,
+      "current_pinned": 2,
       "resolved_pinned": null,
       "coverage": null,
-      "version": "0.2.1"
+      "version": "0.3.3"
     }
   ],
   "skip_reasons": [
     {
       "reason": "type_not_inspected",
-      "count": 89
-    },
-    {
-      "reason": "no_migrating_connectors",
-      "count": 40
+      "count": 271
     },
     {
       "reason": "no_external_connectors",
-      "count": 18
+      "count": 192
+    },
+    {
+      "reason": "no_migrating_connectors",
+      "count": 61
     },
     {
       "reason": "definition_parsed_but_no_expressions",
-      "count": 2
+      "count": 20
     },
     {
       "reason": "deleted_during_scan",
@@ -230,12 +268,12 @@
   ],
   "state_backends": [
     {
-      "backend": "lakehouse",
-      "scans": 7
-    },
-    {
       "backend": "",
       "scans": 11
+    },
+    {
+      "backend": "lakehouse",
+      "scans": 13
     },
     {
       "backend": "home",
@@ -245,14 +283,16 @@
   "first_vs_return": [
     {
       "is_first_run": "True",
-      "scans": 19
+      "scans": 24
     },
     {
       "is_first_run": "False",
-      "scans": 3
+      "scans": 4
     }
   ],
   "github": {
+    "clones_14d": "160",
+    "unique_cloners_14d": "48",
     "views_14d": "12",
     "unique_viewers_14d": "3",
     "top_referrer_1": "github.com",
@@ -271,9 +311,7 @@
     "subscribers": "0",
     "repo": "MichaelaIsaacs/pq-adbc-advisor",
     "source": "github_traffic_daily",
-    "run_id": "b1955e79afcd4dd5adae82d71bd3e1d0",
-    "clones_14d": "160",
-    "unique_cloners_14d": "48",
+    "run_id": "377122360eaf4157bff81aeb869a2739",
     "clones_day_0_date": "2026-08-23T00:00:00.0000000Z",
     "clones_day_0_count": "2",
     "clones_day_0_unique": "2",
