@@ -626,6 +626,11 @@ def _record_send(status: str, detail: str = "") -> None:
         _SEND_HISTORY.append(entry)
         if len(_SEND_HISTORY) > _SEND_HISTORY_CAP:
             del _SEND_HISTORY[: len(_SEND_HISTORY) - _SEND_HISTORY_CAP]
+    # v0.3.7: also persist to state file so history survives kernel restart.
+    try:
+        _state.append_telemetry_log(entry)
+    except Exception:
+        pass
 
 
 def get_send_history() -> list[dict[str, Any]]:
@@ -648,7 +653,18 @@ def _looks_like_captive_portal(body: str) -> bool:
 
 
 def _post(event_name: str, properties: dict[str, Any]) -> None:
-    """Send one event to Application Insights with retry + observability."""
+    """Send one event to Application Insights with retry + observability.
+
+    v0.3.7 hardening:
+      * Verifies response body reports itemsAccepted == itemsReceived — an
+        HTTP 200 alone does NOT prove ingestion. AI can 200 an envelope it
+        later drops (rate limit, schema invalid).
+      * Buffers failed envelopes to the lakehouse state file so the NEXT
+        scan flushes them. Prevents proxy-blocked / offline runs from being
+        silent losses.
+      * Persists ingest outcomes to state file too — send history survives
+        kernel restart so PM team can debug post-hoc.
+    """
     resolved = _resolve_connection()
     if resolved is None:
         _record_send("disabled", "no ikey resolved")
@@ -668,50 +684,118 @@ def _post(event_name: str, properties: dict[str, Any]) -> None:
             },
         },
     }
+
+    # Best-effort flush of any envelopes buffered on prior scans that failed
+    # (proxy blocked, offline, transient 5xx). Never grow the backlog.
+    try:
+        _flush_buffered_envelopes(endpoint)
+    except Exception:
+        pass
+
+    outcome = _send_one(envelope, endpoint, event_name)
+    if not outcome.get("accepted"):
+        try:
+            _state.buffer_failed_envelope({
+                "envelope": envelope,
+                "event_name": event_name,
+                "buffered_at": _state._now_iso(),
+                "reason": outcome.get("status") or "unknown",
+            })
+        except Exception:
+            pass
+
+
+def _send_one(envelope: dict[str, Any], endpoint: str, event_name: str) -> dict[str, Any]:
+    """Try to POST one envelope. Records outcome. Returns {'accepted': bool, ...}."""
     body = json.dumps(envelope)
     headers = {"Content-Type": "application/json"}
 
-    # First attempt.
     r = _try_send(endpoint, body, headers)
     if r is None:
         # Network failure — retry once to absorb transient DNS blips.
         r = _try_send(endpoint, body, headers)
         if r is None:
-            _record_send("network", "requests raised twice in a row")
-            return
-        _record_send("retried_ok" if 200 <= r.status_code < 300 else f"http_{r.status_code}")
-        return
+            _record_send("network", f"requests raised twice ({event_name})")
+            return {"accepted": False, "status": "network"}
+        return _classify_response(r, event_name, retried=True)
 
     # HTTP response — classify.
     if r.status_code in (429, 503):
         r2 = _try_send(endpoint, body, headers)
-        if r2 is not None and 200 <= r2.status_code < 300:
-            _record_send("retried_ok", f"first={r.status_code}")
-            return
-        _record_send(
-            f"http_{r.status_code}",
-            f"retry {'also failed' if r2 is None else 'returned ' + str(r2.status_code)}",
-        )
-        return
+        if r2 is not None:
+            return _classify_response(r2, event_name, retried=True, first_status=r.status_code)
+        _record_send(f"http_{r.status_code}", "retry also failed")
+        return {"accepted": False, "status": f"http_{r.status_code}"}
 
-    if 200 <= r.status_code < 300:
-        # 200 from a captive portal is a hidden failure.
+    return _classify_response(r, event_name, retried=False)
+
+
+def _classify_response(r, event_name: str, retried: bool, first_status: int | None = None) -> dict[str, Any]:
+    """Interpret an HTTP response — HTTP 2xx alone is NOT proof of ingestion."""
+    status = r.status_code
+    if not (200 <= status < 300):
+        _record_send(f"http_{status}", (getattr(r, "text", "") or "")[:200])
+        return {"accepted": False, "status": f"http_{status}"}
+    # 2xx — check for captive portal AND parse the ingestion body.
+    try:
+        resp_body = r.text or ""
+    except Exception:
+        resp_body = ""
+    if _looks_like_captive_portal(resp_body):
+        _record_send("captive_portal", "HTML body in a 2xx response")
+        return {"accepted": False, "status": "captive_portal"}
+    # App Insights returns JSON like: {"itemsReceived":1,"itemsAccepted":1,"errors":[]}
+    # Anything else is a silent drop even at HTTP 200.
+    accepted = False
+    detail = ""
+    try:
+        parsed = json.loads(resp_body) if resp_body else {}
+        items_received = int(parsed.get("itemsReceived", 0))
+        items_accepted = int(parsed.get("itemsAccepted", 0))
+        errors = list(parsed.get("errors", []) or [])
+        accepted = items_accepted >= 1 and items_accepted == items_received and not errors
+        detail = f"received={items_received} accepted={items_accepted} errors={len(errors)}"
+    except (ValueError, TypeError, KeyError):
+        # Body wasn't the expected shape — do not claim success.
+        detail = f"unparseable body: {resp_body[:120]}"
+    label = "retried_ok" if (accepted and retried) else ("ok" if accepted else "ingest_drop")
+    if first_status:
+        detail = f"first={first_status} {detail}"
+    _record_send(label, detail)
+    return {"accepted": accepted, "status": label, "detail": detail}
+
+
+def _flush_buffered_envelopes(endpoint: str, max_flush: int = 50) -> int:
+    """Try to re-send previously buffered envelopes. Returns count flushed."""
+    flushed = 0
+    try:
+        pending = _state.read_buffered_envelopes()
+    except Exception:
+        return 0
+    if not pending:
+        return 0
+    succeeded_ids: list[str] = []
+    for item in pending[:max_flush]:
+        env = item.get("envelope")
+        if not env:
+            succeeded_ids.append(item.get("id", ""))  # malformed → drop
+            continue
+        outcome = _send_one(env, endpoint, item.get("event_name", "buffered"))
+        if outcome.get("accepted"):
+            succeeded_ids.append(item.get("id", ""))
+            flushed += 1
+    if succeeded_ids:
         try:
-            text_head = (r.text or "")[:2048]
+            _state.remove_buffered_envelopes(succeeded_ids)
         except Exception:
-            text_head = ""
-        if _looks_like_captive_portal(text_head):
-            _record_send("captive_portal", "HTML body in a 2xx response")
-            return
-        _record_send("ok")
-        return
-
-    _record_send(f"http_{r.status_code}", (getattr(r, "text", "") or "")[:200])
+            pass
+    return flushed
 
 
 def _try_send(endpoint: str, body: str, headers: dict[str, str]):
+    """POST with a 15-second timeout — enterprise proxies are slow (v0.3.7)."""
     try:
-        return requests.post(endpoint, data=body, headers=headers, timeout=5)
+        return requests.post(endpoint, data=body, headers=headers, timeout=15)
     except Exception:
         return None
 
@@ -760,3 +844,81 @@ def send_test_event(note: str = "") -> dict[str, Any]:
         }
     except Exception as e:
         return {"sent": False, "reason": f"{type(e).__name__}: {e}"}
+
+
+def send_canary(source: str = "manual") -> dict[str, Any]:
+    """Public helper for scheduled canary checks (v0.3.7).
+
+    Fires a ``canary_ping`` event that's cleanly filterable in KQL so the
+    dashboard can plot pipeline health without polluting real adoption
+    counts. Returns the ingestion diagnostic dict from `_send_one` — the
+    caller can assert `outcome["accepted"] is True` and alert on False.
+
+    Args:
+        source: Free-text label recorded on the event so we can tell an
+            automation-fired canary apart from a manual one. Suggested:
+            ``"automation"``, ``"manual"``, ``"ci"``.
+    """
+    resolved = _resolve_connection()
+    if resolved is None:
+        return {"accepted": False, "status": "disabled", "detail": "no ikey resolved"}
+    ikey, endpoint = resolved
+    envelope = {
+        "name": "Microsoft.ApplicationInsights.Event",
+        "time": _state._now_iso(),
+        "iKey": ikey,
+        "data": {
+            "baseType": "EventData",
+            "baseData": {
+                "ver": 2,
+                "name": "canary_ping",
+                "properties": {
+                    "surface": "notebook",
+                    "mode": "diagnose",
+                    "version": TOOL_VERSION,
+                    "source": source,
+                    "canary": "true",
+                    "sent_at": _state._now_iso(),
+                },
+            },
+        },
+    }
+    return _send_one(envelope, endpoint, "canary_ping")
+
+
+def telemetry_health() -> dict[str, Any]:
+    """Return a summary of the tool's telemetry pipeline health (v0.3.7).
+
+    Combines the in-memory ring buffer with the persisted log so callers
+    can debug both live-session and prior-session issues in one look.
+
+    Fields returned:
+      * ``connection`` — resolved ikey/endpoint (with the ikey truncated),
+        or None when telemetry is disabled.
+      * ``recent_attempts`` — last 20 in-memory attempts.
+      * ``persistent_log_count`` — number of attempts on disk.
+      * ``buffered_envelopes`` — envelopes waiting to be flushed on the
+        next successful send.
+      * ``last_ok_at`` — ISO timestamp of the most recent ``ok`` /
+        ``retried_ok`` attempt, or ``None`` if we've never had one.
+      * ``last_failure`` — the most recent non-ok entry with reason.
+    """
+    resolved = _resolve_connection()
+    connection = None
+    if resolved is not None:
+        ikey, endpoint = resolved
+        connection = {"ikey_prefix": ikey[:8] + "...", "endpoint": endpoint}
+    log = _state.read_telemetry_log() if hasattr(_state, "read_telemetry_log") else []
+    all_attempts = list(log) + get_send_history()
+    ok_attempts = [e for e in all_attempts if e.get("status") in ("ok", "retried_ok")]
+    fail_attempts = [e for e in all_attempts if e.get("status") not in ("ok", "retried_ok")]
+    buffered = _state.read_buffered_envelopes() if hasattr(_state, "read_buffered_envelopes") else []
+    return {
+        "connection": connection,
+        "recent_attempts": get_send_history(),
+        "persistent_log_count": len(log),
+        "buffered_envelopes": len(buffered),
+        "last_ok_at": ok_attempts[-1].get("at") if ok_attempts else None,
+        "last_failure": fail_attempts[-1] if fail_attempts else None,
+        "opt_out_active": _state.is_telemetry_opted_out(),
+    }

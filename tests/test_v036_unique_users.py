@@ -53,8 +53,8 @@ def _capture():
     events: list[dict] = []
     class R:
         status_code = 200
-        text = "{}"
-        def json(self): return {"itemsAccepted": 1}
+        text = '{"itemsReceived":1,"itemsAccepted":1,"errors":[]}'
+        def json(self): return {"itemsReceived": 1, "itemsAccepted": 1, "errors": []}
     def post(url, data=None, **kw):
         events.append(json.loads(data))
         return R()

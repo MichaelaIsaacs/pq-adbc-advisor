@@ -299,8 +299,8 @@ def test_bug7_hours_saved_uses_inspected_items_only(tmp_path, monkeypatch):
     events: list[dict] = []
     class R:
         status_code = 200
-        text = ""
-        def json(self): return {"itemsAccepted": 1}
+        text = '{"itemsReceived":1,"itemsAccepted":1,"errors":[]}'
+        def json(self): return {"itemsReceived": 1, "itemsAccepted": 1, "errors": []}
     with patch.object(telemetry.requests, "post",
                       side_effect=lambda url, data=None, **kw:
                       (events.append(json.loads(data)) or R())):
@@ -345,8 +345,8 @@ def test_bug9_send_history_records_ok(monkeypatch):
     )
     class R:
         status_code = 200
-        text = "{'itemsAccepted': 1}"
-        def json(self): return {"itemsAccepted": 1}
+        text = '{"itemsReceived":1,"itemsAccepted":1,"errors":[]}'
+        def json(self): return {"itemsReceived": 1, "itemsAccepted": 1, "errors": []}
     with patch.object(telemetry.requests, "post",
                       side_effect=lambda url, data=None, **kw: R()):
         telemetry._post("scan_complete", {"version": "0.3.5", "workspace_id": "ws"})
@@ -382,7 +382,7 @@ def test_bug9_send_history_records_429_and_retries_once(monkeypatch):
     class R:
         def __init__(self, code):
             self.status_code = code
-            self.text = "{}"
+            self.text = '{"itemsReceived":1,"itemsAccepted":1,"errors":[]}' if code == 200 else "{}"
         def json(self): return {}
     def fake(url, data=None, **kw):
         return R(seq.pop(0))
@@ -419,8 +419,8 @@ def test_bug9_telemetry_status_exposes_last_send(monkeypatch):
     )
     class R:
         status_code = 200
-        text = "{}"
-        def json(self): return {}
+        text = '{"itemsReceived":1,"itemsAccepted":1,"errors":[]}'
+        def json(self): return {"itemsReceived": 1, "itemsAccepted": 1, "errors": []}
     with patch.object(telemetry.requests, "post",
                       side_effect=lambda url, data=None, **kw: R()):
         telemetry._post("scan_complete", {"version": "0.3.5"})

@@ -84,6 +84,15 @@ _HOME_DIR = "~/.pq-adbc-advisor"
 # baseline mutations, so disable→enable→disable never corrupts a baseline.
 _LAKEHOUSE_OPT_OUT = "/lakehouse/default/Files/pq_adbc_advisor_opt_out.json"
 
+# v0.3.7: telemetry buffer + persistent send log. Both are in the same
+# lakehouse Files/ tree so they follow the workspace and survive kernel
+# restarts. Buffer holds envelopes that failed to reach App Insights;
+# log holds a bounded audit trail of every send attempt.
+_LAKEHOUSE_TELEMETRY_BUFFER = "/lakehouse/default/Files/pq_adbc_advisor_telemetry_buffer.json"
+_LAKEHOUSE_TELEMETRY_LOG = "/lakehouse/default/Files/pq_adbc_advisor_telemetry_log.json"
+_TELEMETRY_LOG_CAP = 200
+_TELEMETRY_BUFFER_CAP = 500  # hard limit so a persistently-offline environment cannot balloon disk
+
 
 def _sanitize(component: str) -> str:
     """Make a string safe for a filename (Bug 2 fix)."""
@@ -526,3 +535,131 @@ def _state_paths() -> list[str]:
 def _home_fallback_path() -> str:  # noqa: N802 — kept for monkeypatch compat
     """Deprecated: returns the legacy home path used before v0.3.5."""
     return _home_baseline_path(None, None)
+
+
+# --------------------------------------------------------------------------- #
+# v0.3.7 — telemetry buffer + persistent send log
+# --------------------------------------------------------------------------- #
+#
+# Both live in the same Files/ tree as baseline state. They exist so the PM
+# team can:
+#   1. Recover events from proxy-blocked / offline scans (buffer flushes on
+#      the next successful send).
+#   2. Debug silent failures post-hoc (log survives kernel restart).
+#
+# Neither file ever holds PII: buffered envelopes carry the same
+# hashed/anonymized fields the wire event does, and the log only records
+# transport-level outcomes.
+
+def _home_telemetry_buffer_path() -> str:
+    return os.path.join(_home_dir(), "telemetry_buffer.json")
+
+
+def _home_telemetry_log_path() -> str:
+    return os.path.join(_home_dir(), "telemetry_log.json")
+
+
+def _telemetry_buffer_paths() -> list[str]:
+    return [_LAKEHOUSE_TELEMETRY_BUFFER, _home_telemetry_buffer_path()]
+
+
+def _telemetry_log_paths() -> list[str]:
+    return [_LAKEHOUSE_TELEMETRY_LOG, _home_telemetry_log_path()]
+
+
+def _read_first_available(paths: list[str]) -> tuple[dict[str, Any] | None, str | None]:
+    """Return (payload, path) for the first path we can read, or (None, None)."""
+    for path in paths:
+        try:
+            existing = _read_json(path)
+            if existing is not None:
+                return existing, path
+        except Exception:
+            continue
+    return None, None
+
+
+def append_telemetry_log(entry: dict[str, Any]) -> None:
+    """Append one send-attempt outcome to the persistent log.
+
+    The log is a ring buffer of the last _TELEMETRY_LOG_CAP entries. Never
+    raises — the log is best-effort observability, not a critical path.
+    """
+    paths = _telemetry_log_paths()
+    for path in paths:
+        try:
+            existing, _ = _read_first_available([path])
+            log: list[dict[str, Any]] = list((existing or {}).get("entries", []))
+            log.append(entry)
+            if len(log) > _TELEMETRY_LOG_CAP:
+                log = log[-_TELEMETRY_LOG_CAP:]
+            payload = {"schema_version": 1, "entries": log}
+            if _write_json_atomic(path, payload):
+                return
+        except Exception:
+            continue
+
+
+def read_telemetry_log() -> list[dict[str, Any]]:
+    """Return the persistent send-attempt log, newest last. Empty on error."""
+    existing, _ = _read_first_available(_telemetry_log_paths())
+    if not existing:
+        return []
+    entries = existing.get("entries")
+    return list(entries) if isinstance(entries, list) else []
+
+
+def buffer_failed_envelope(item: dict[str, Any]) -> None:
+    """Persist a failed AI envelope for a later retry.
+
+    Assigns a stable id so `remove_buffered_envelopes` can dedupe. Silently
+    drops the oldest entries when _TELEMETRY_BUFFER_CAP is exceeded.
+    """
+    item = dict(item)
+    item.setdefault("id", str(uuid.uuid4()))
+    for path in _telemetry_buffer_paths():
+        try:
+            existing, _ = _read_first_available([path])
+            queue: list[dict[str, Any]] = list((existing or {}).get("envelopes", []))
+            queue.append(item)
+            if len(queue) > _TELEMETRY_BUFFER_CAP:
+                queue = queue[-_TELEMETRY_BUFFER_CAP:]
+            payload = {"schema_version": 1, "envelopes": queue}
+            if _write_json_atomic(path, payload):
+                return
+        except Exception:
+            continue
+
+
+def read_buffered_envelopes() -> list[dict[str, Any]]:
+    """Return buffered envelopes waiting to be flushed. Empty on error."""
+    existing, _ = _read_first_available(_telemetry_buffer_paths())
+    if not existing:
+        return []
+    env = existing.get("envelopes")
+    return list(env) if isinstance(env, list) else []
+
+
+def remove_buffered_envelopes(ids_to_drop: list[str]) -> int:
+    """Drop the given ids from the buffer. Returns count removed. Never raises."""
+    if not ids_to_drop:
+        return 0
+    drop_set = {i for i in ids_to_drop if i}
+    removed = 0
+    for path in _telemetry_buffer_paths():
+        try:
+            existing, _ = _read_first_available([path])
+            if not existing:
+                continue
+            queue = list(existing.get("envelopes", []))
+            kept = [e for e in queue if e.get("id") not in drop_set]
+            removed_here = len(queue) - len(kept)
+            if removed_here == 0:
+                continue
+            payload = {"schema_version": 1, "envelopes": kept}
+            if _write_json_atomic(path, payload):
+                removed = removed_here
+                return removed
+        except Exception:
+            continue
+    return removed
