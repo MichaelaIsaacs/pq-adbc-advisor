@@ -187,7 +187,8 @@ def test_scan_complete_payload_carries_value_story_fields(isolated_backends, mon
     captured: list[dict] = []
     class FakeResp:
         status_code = 200
-        def json(self): return {"itemsAccepted": 1}
+        text = '{"itemsReceived":1,"itemsAccepted":1,"errors":[]}'
+        def json(self): return {"itemsReceived": 1, "itemsAccepted": 1, "errors": []}
     def fake_post(url, data=None, **kw):
         captured.append(json.loads(data))
         return FakeResp()
