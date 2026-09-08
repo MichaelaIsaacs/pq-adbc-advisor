@@ -1,23 +1,23 @@
 {
-  "generated_at": "2026-09-07T20:45:45Z",
+  "generated_at": "2026-09-08T14:53:31Z",
   "repo": "MichaelaIsaacs/pq-adbc-advisor",
   "reach": {
-    "scans": 28,
+    "scans": 30,
     "workspaces": 14,
     "tenants": 1
   },
   "resolution": {
-    "resolved_pinned": 2,
-    "resolved_high": 2,
+    "resolved_pinned": 1,
+    "resolved_high": 1,
     "resolved_medium": 0,
     "resolved_custom_dsn": 0,
-    "return_scans": 4
+    "return_scans": 6
   },
   "value": {
-    "hours_saved": 141.70000000000005,
-    "inspected": 2834,
+    "hours_saved": 141.95000000000005,
+    "inspected": 2839,
     "median_coverage": 60,
-    "sempy_used_pct": 46.42857142857143
+    "sempy_used_pct": 50
   },
   "trend": [
     {
@@ -54,12 +54,17 @@
       "timestamp": "2026-09-07T00:00:00Z",
       "scans": 6,
       "workspaces": 3
+    },
+    {
+      "timestamp": "2026-09-08T00:00:00Z",
+      "scans": 2,
+      "workspaces": 1
     }
   ],
   "versions": [
     {
       "version": "0.3.6",
-      "scans": 15,
+      "scans": 17,
       "workspaces": 10
     },
     {
@@ -101,6 +106,28 @@
       "version": "0.3.5"
     },
     {
+      "workspace": "33be09e5-e022-4311-9749-e784a1d14875",
+      "timestamp": "2026-09-02T20:19:33Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 60,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "v036-smoke-ws",
+      "timestamp": "2026-08-31T20:28:35Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 1,
+      "current_pinned": 1,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.6"
+    },
+    {
       "workspace": "d2a25cc1-3553-4375-90df-1953384a1378",
       "timestamp": "2026-09-04T18:31:50Z",
       "is_first": "True",
@@ -112,12 +139,34 @@
       "version": "0.3.6"
     },
     {
-      "workspace": "(tenant)",
-      "timestamp": "2026-09-04T18:53:26Z",
+      "workspace": "a09c94da-ddcf-4cf7-ba24-8c11cfb4d67b",
+      "timestamp": "2026-09-07T06:35:44Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 20,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "72a01254-ff0e-446e-9bb8-7dcb9105ddbf",
+      "timestamp": "2026-09-07T14:46:25Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 62,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "v036-bugbashed-ws",
+      "timestamp": "2026-08-31T20:32:54Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 1,
+      "current_pinned": 1,
       "resolved_pinned": 0,
       "coverage": 100,
       "version": "0.3.6"
@@ -134,50 +183,6 @@
       "version": "0.3.6"
     },
     {
-      "workspace": "a09c94da-ddcf-4cf7-ba24-8c11cfb4d67b",
-      "timestamp": "2026-09-07T06:35:44Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 20,
-      "version": "0.3.6"
-    },
-    {
-      "workspace": "3a6042e0-191e-4062-988e-640a4df4624d",
-      "timestamp": "2026-09-07T11:20:13Z",
-      "is_first": "False",
-      "run_count": 2,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 60,
-      "version": "0.3.6"
-    },
-    {
-      "workspace": "72a01254-ff0e-446e-9bb8-7dcb9105ddbf",
-      "timestamp": "2026-09-07T14:46:25Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 62,
-      "version": "0.3.6"
-    },
-    {
-      "workspace": "33be09e5-e022-4311-9749-e784a1d14875",
-      "timestamp": "2026-09-02T20:19:33Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 60,
-      "version": "0.3.6"
-    },
-    {
       "workspace": "1751cb16-aafa-493b-9cc6-29f4b55b6daf",
       "timestamp": "2026-09-04T18:34:58Z",
       "is_first": "True",
@@ -189,26 +194,37 @@
       "version": "0.3.6"
     },
     {
-      "workspace": "v036-smoke-ws",
-      "timestamp": "2026-08-31T20:28:35Z",
+      "workspace": "(tenant)",
+      "timestamp": "2026-09-04T18:53:26Z",
       "is_first": "True",
       "run_count": 1,
-      "first_pinned": 1,
-      "current_pinned": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
       "resolved_pinned": 0,
       "coverage": 100,
       "version": "0.3.6"
     },
     {
-      "workspace": "v036-bugbashed-ws",
-      "timestamp": "2026-08-31T20:32:54Z",
+      "workspace": "3a6042e0-191e-4062-988e-640a4df4624d",
+      "timestamp": "2026-09-08T12:08:42Z",
+      "is_first": "False",
+      "run_count": 4,
+      "first_pinned": 0,
+      "current_pinned": 1,
+      "resolved_pinned": -1,
+      "coverage": 60,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "4e70507f-c8cb-4552-88d1-cd4e06ce2d5a",
+      "timestamp": "2026-08-24T23:23:26Z",
       "is_first": "True",
       "run_count": 1,
-      "first_pinned": 1,
-      "current_pinned": 1,
-      "resolved_pinned": 0,
-      "coverage": 100,
-      "version": "0.3.6"
+      "first_pinned": 2,
+      "current_pinned": 2,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.3.3"
     },
     {
       "workspace": "smoke-test-ws-guid-11111111",
@@ -231,35 +247,24 @@
       "resolved_pinned": null,
       "coverage": null,
       "version": "0.2.1"
-    },
-    {
-      "workspace": "4e70507f-c8cb-4552-88d1-cd4e06ce2d5a",
-      "timestamp": "2026-08-24T23:23:26Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 2,
-      "current_pinned": 2,
-      "resolved_pinned": null,
-      "coverage": null,
-      "version": "0.3.3"
     }
   ],
   "skip_reasons": [
     {
       "reason": "type_not_inspected",
-      "count": 271
+      "count": 347
     },
     {
       "reason": "no_external_connectors",
-      "count": 192
+      "count": 279
     },
     {
       "reason": "no_migrating_connectors",
-      "count": 61
+      "count": 75
     },
     {
       "reason": "definition_parsed_but_no_expressions",
-      "count": 20
+      "count": 30
     },
     {
       "reason": "deleted_during_scan",
@@ -273,7 +278,7 @@
     },
     {
       "backend": "lakehouse",
-      "scans": 13
+      "scans": 15
     },
     {
       "backend": "home",
@@ -287,16 +292,14 @@
     },
     {
       "is_first_run": "False",
-      "scans": 4
+      "scans": 6
     }
   ],
   "github": {
-    "clones_14d": "160",
-    "unique_cloners_14d": "48",
-    "views_14d": "12",
-    "unique_viewers_14d": "3",
-    "top_referrer_1": "github.com",
-    "top_referrer_1_count": "3",
+    "clones_14d": "163",
+    "unique_cloners_14d": "53",
+    "views_14d": "10",
+    "unique_viewers_14d": "1",
     "release_downloads_v0_3_1": "0",
     "release_downloads_v0_3_0": "0",
     "release_downloads_v0_2_4": "0",
@@ -311,49 +314,49 @@
     "subscribers": "0",
     "repo": "MichaelaIsaacs/pq-adbc-advisor",
     "source": "github_traffic_daily",
-    "run_id": "377122360eaf4157bff81aeb869a2739",
-    "clones_day_0_date": "2026-08-23T00:00:00.0000000Z",
-    "clones_day_0_count": "2",
-    "clones_day_0_unique": "2",
-    "clones_day_1_date": "2026-08-24T00:00:00.0000000Z",
-    "clones_day_1_count": "32",
-    "clones_day_1_unique": "11",
-    "clones_day_2_date": "2026-08-25T00:00:00.0000000Z",
-    "clones_day_2_count": "0",
-    "clones_day_2_unique": "0",
-    "clones_day_3_date": "2026-08-26T00:00:00.0000000Z",
+    "run_id": "3411bf4a41ac400ab8ff2aff8fbb3eda",
+    "clones_day_0_date": "2026-08-25T00:00:00.0000000Z",
+    "clones_day_0_count": "0",
+    "clones_day_0_unique": "0",
+    "clones_day_1_date": "2026-08-26T00:00:00.0000000Z",
+    "clones_day_1_count": "1",
+    "clones_day_1_unique": "1",
+    "clones_day_2_date": "2026-08-27T00:00:00.0000000Z",
+    "clones_day_2_count": "1",
+    "clones_day_2_unique": "1",
+    "clones_day_3_date": "2026-08-28T00:00:00.0000000Z",
     "clones_day_3_count": "1",
     "clones_day_3_unique": "1",
-    "clones_day_4_date": "2026-08-27T00:00:00.0000000Z",
+    "clones_day_4_date": "2026-08-29T00:00:00.0000000Z",
     "clones_day_4_count": "1",
     "clones_day_4_unique": "1",
-    "clones_day_5_date": "2026-08-28T00:00:00.0000000Z",
-    "clones_day_5_count": "1",
-    "clones_day_5_unique": "1",
-    "clones_day_6_date": "2026-08-29T00:00:00.0000000Z",
-    "clones_day_6_count": "1",
-    "clones_day_6_unique": "1",
-    "clones_day_7_date": "2026-08-30T00:00:00.0000000Z",
-    "clones_day_7_count": "0",
-    "clones_day_7_unique": "0",
-    "clones_day_8_date": "2026-08-31T00:00:00.0000000Z",
-    "clones_day_8_count": "54",
-    "clones_day_8_unique": "14",
-    "clones_day_9_date": "2026-09-01T00:00:00.0000000Z",
-    "clones_day_9_count": "15",
-    "clones_day_9_unique": "6",
-    "clones_day_10_date": "2026-09-02T00:00:00.0000000Z",
-    "clones_day_10_count": "16",
-    "clones_day_10_unique": "7",
-    "clones_day_11_date": "2026-09-03T00:00:00.0000000Z",
-    "clones_day_11_count": "8",
-    "clones_day_11_unique": "4",
-    "clones_day_12_date": "2026-09-04T00:00:00.0000000Z",
-    "clones_day_12_count": "26",
-    "clones_day_12_unique": "14",
-    "clones_day_13_date": "2026-09-05T00:00:00.0000000Z",
-    "clones_day_13_count": "3",
-    "clones_day_13_unique": "2",
+    "clones_day_5_date": "2026-08-30T00:00:00.0000000Z",
+    "clones_day_5_count": "0",
+    "clones_day_5_unique": "0",
+    "clones_day_6_date": "2026-08-31T00:00:00.0000000Z",
+    "clones_day_6_count": "54",
+    "clones_day_6_unique": "14",
+    "clones_day_7_date": "2026-09-01T00:00:00.0000000Z",
+    "clones_day_7_count": "15",
+    "clones_day_7_unique": "6",
+    "clones_day_8_date": "2026-09-02T00:00:00.0000000Z",
+    "clones_day_8_count": "16",
+    "clones_day_8_unique": "7",
+    "clones_day_9_date": "2026-09-03T00:00:00.0000000Z",
+    "clones_day_9_count": "8",
+    "clones_day_9_unique": "4",
+    "clones_day_10_date": "2026-09-04T00:00:00.0000000Z",
+    "clones_day_10_count": "26",
+    "clones_day_10_unique": "14",
+    "clones_day_11_date": "2026-09-05T00:00:00.0000000Z",
+    "clones_day_11_count": "3",
+    "clones_day_11_unique": "2",
+    "clones_day_12_date": "2026-09-06T00:00:00.0000000Z",
+    "clones_day_12_count": "6",
+    "clones_day_12_unique": "3",
+    "clones_day_13_date": "2026-09-07T00:00:00.0000000Z",
+    "clones_day_13_count": "31",
+    "clones_day_13_unique": "16",
     "clones_days": "14"
   },
   "releases": [
