@@ -84,12 +84,20 @@ _HOME_DIR = "~/.pq-adbc-advisor"
 # baseline mutations, so disable→enable→disable never corrupts a baseline.
 _LAKEHOUSE_OPT_OUT = "/lakehouse/default/Files/pq_adbc_advisor_opt_out.json"
 
-# v0.3.7: telemetry buffer + persistent send log. Both are in the same
-# lakehouse Files/ tree so they follow the workspace and survive kernel
-# restarts. Buffer holds envelopes that failed to reach App Insights;
-# log holds a bounded audit trail of every send attempt.
-_LAKEHOUSE_TELEMETRY_BUFFER = "/lakehouse/default/Files/pq_adbc_advisor_telemetry_buffer.json"
-_LAKEHOUSE_TELEMETRY_LOG = "/lakehouse/default/Files/pq_adbc_advisor_telemetry_log.json"
+# v0.3.8 SECURITY: telemetry buffer + persistent send log are HOME-ONLY.
+# Prior versions (v0.3.7) wrote these to /lakehouse/default/Files/, which
+# is shared across every user of the workspace. Buffered envelopes carry
+# workspace_id + tenant_hash + user_hash, so a cross-workspace lakehouse
+# reader could see other users' telemetry metadata (Natasha finding
+# HIGH-1). Fabric notebook home directories are per-notebook-kernel and
+# isolated per user session, so writing here is naturally private.
+#
+# Trade-off: the buffer no longer survives a kernel restart. That is
+# acceptable because the buffer's purpose is within-session retries
+# against transient proxy/5xx failures. Cross-session persistence of
+# individual failed events was never worth the cross-user disclosure.
+_HOME_TELEMETRY_BUFFER = "telemetry_buffer.json"
+_HOME_TELEMETRY_LOG = "telemetry_log.json"
 _TELEMETRY_LOG_CAP = 200
 _TELEMETRY_BUFFER_CAP = 500  # hard limit so a persistently-offline environment cannot balloon disk
 
@@ -538,33 +546,44 @@ def _home_fallback_path() -> str:  # noqa: N802 — kept for monkeypatch compat
 
 
 # --------------------------------------------------------------------------- #
-# v0.3.7 — telemetry buffer + persistent send log
+# v0.3.8 SECURITY (was v0.3.7) — telemetry buffer + persistent send log
 # --------------------------------------------------------------------------- #
 #
-# Both live in the same Files/ tree as baseline state. They exist so the PM
-# team can:
-#   1. Recover events from proxy-blocked / offline scans (buffer flushes on
-#      the next successful send).
-#   2. Debug silent failures post-hoc (log survives kernel restart).
+# **HOME-ONLY, NEVER LAKEHOUSE.** Prior versions (v0.3.7) wrote these files
+# to /lakehouse/default/Files/ alongside baseline state. That is a shared
+# workspace surface — every user of the workspace can read Files/. Buffered
+# envelopes carry workspace_id + tenant_hash + user_hash, so a lakehouse
+# reader could inspect other users' telemetry metadata. Natasha's Sept 2026
+# review flagged this as HIGH-1 severity.
 #
-# Neither file ever holds PII: buffered envelopes carry the same
-# hashed/anonymized fields the wire event does, and the log only records
-# transport-level outcomes.
+# In v0.3.8 the buffer and log live ONLY in the notebook kernel's home
+# directory (~/.pq-adbc-advisor/). Fabric notebook home dirs are per-
+# notebook-kernel and isolated per user session, so there is no cross-user
+# read surface. Trade-off: buffer no longer survives kernel restart.
+# Acceptable because the buffer exists for within-session transient
+# retries; cross-session persistence was never worth cross-user leak.
+#
+# Baseline state and the opt-out flag remain in lakehouse Files/ because
+# they only carry the writer's own workspace/tenant hash + first-run counts
+# (no other users' data), and they need cross-session persistence for the
+# "improvement over time" metric and the opt-out promise.
 
 def _home_telemetry_buffer_path() -> str:
-    return os.path.join(_home_dir(), "telemetry_buffer.json")
+    return os.path.join(_home_dir(), _HOME_TELEMETRY_BUFFER)
 
 
 def _home_telemetry_log_path() -> str:
-    return os.path.join(_home_dir(), "telemetry_log.json")
+    return os.path.join(_home_dir(), _HOME_TELEMETRY_LOG)
 
 
 def _telemetry_buffer_paths() -> list[str]:
-    return [_LAKEHOUSE_TELEMETRY_BUFFER, _home_telemetry_buffer_path()]
+    """v0.3.8 SECURITY: home-only, no lakehouse."""
+    return [_home_telemetry_buffer_path()]
 
 
 def _telemetry_log_paths() -> list[str]:
-    return [_LAKEHOUSE_TELEMETRY_LOG, _home_telemetry_log_path()]
+    """v0.3.8 SECURITY: home-only, no lakehouse."""
+    return [_home_telemetry_log_path()]
 
 
 def _read_first_available(paths: list[str]) -> tuple[dict[str, Any] | None, str | None]:
@@ -584,6 +603,9 @@ def append_telemetry_log(entry: dict[str, Any]) -> None:
 
     The log is a ring buffer of the last _TELEMETRY_LOG_CAP entries. Never
     raises — the log is best-effort observability, not a critical path.
+    Diagnostic history only, not audit evidence (workspace users cannot
+    tamper because it's home-only in v0.3.8, but home containers are
+    ephemeral in Fabric so cross-session tamper evidence is not preserved).
     """
     paths = _telemetry_log_paths()
     for path in paths:
@@ -610,10 +632,11 @@ def read_telemetry_log() -> list[dict[str, Any]]:
 
 
 def buffer_failed_envelope(item: dict[str, Any]) -> None:
-    """Persist a failed AI envelope for a later retry.
+    """Persist a failed AI envelope for a later retry (home-only, per-user).
 
     Assigns a stable id so `remove_buffered_envelopes` can dedupe. Silently
-    drops the oldest entries when _TELEMETRY_BUFFER_CAP is exceeded.
+    drops the oldest entries when _TELEMETRY_BUFFER_CAP is exceeded. Home-
+    only in v0.3.8 to prevent cross-user disclosure in shared workspaces.
     """
     item = dict(item)
     item.setdefault("id", str(uuid.uuid4()))
@@ -663,3 +686,63 @@ def remove_buffered_envelopes(ids_to_drop: list[str]) -> int:
         except Exception:
             continue
     return removed
+
+
+# --------------------------------------------------------------------------- #
+# v0.3.8 SECURITY — opt-out durability + hard opt-out (Natasha HIGH-2)
+# --------------------------------------------------------------------------- #
+#
+# Prior versions trusted the JSON write to `/lakehouse/default/Files/` to
+# be durable. Fabric notebooks have a known footgun: writes to
+# /lakehouse/default/Files/ silently redirect to /tmp/ if no default
+# lakehouse is attached, so an apparent "success" can be ephemeral. On the
+# next kernel restart, the opt-out is lost and telemetry resumes.
+#
+# v0.3.8 mitigations:
+#   1. An in-process HARD opt-out flag that always wins. Once
+#      disable_telemetry() is called this session, telemetry is off
+#      until the process exits, regardless of file state.
+#   2. Environment variable `PQ_ADBC_ADVISOR_TELEMETRY=off|0|false`
+#      always defeats telemetry without needing any file to exist.
+#   3. Write-through verification: after disable_telemetry() writes
+#      the opt-out file, the code reads it back through the same code
+#      path and verifies. If verification fails, the API returns False
+#      and prints a blocking warning so the customer knows the file
+#      persistence is not proven.
+
+_HARD_OPT_OUT = False
+
+
+def hard_opt_out_active() -> bool:
+    """Session-scoped hard opt-out. Set by disable_telemetry(). Never cleared
+    within a session — you must restart the kernel to re-enable, matching
+    the customer-facing promise that the opt-out cannot be silently reversed.
+    """
+    return _HARD_OPT_OUT
+
+
+def set_hard_opt_out() -> None:
+    """Turn on the in-process hard opt-out. Idempotent."""
+    global _HARD_OPT_OUT
+    _HARD_OPT_OUT = True
+
+
+def _reset_hard_opt_out_for_tests() -> None:
+    """TEST-ONLY. Clears the session-scoped hard opt-out flag. Do NOT use
+    outside test setUp/tearDown fixtures — customers should never be able
+    to reverse an opt-out within a session (see hard_opt_out_active docstring).
+    """
+    global _HARD_OPT_OUT
+    _HARD_OPT_OUT = False
+
+
+def verify_opt_out_durable() -> bool:
+    """After writing the opt-out flag, read it back through the same path
+    logic and return True only if the write survived. Used to detect the
+    Fabric lakehouse-redirect footgun where writes to /lakehouse/default
+    silently land in /tmp/ and disappear on kernel restart.
+    """
+    try:
+        return is_telemetry_opted_out()
+    except Exception:
+        return False

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-TOOL_VERSION = "0.3.7"
+TOOL_VERSION = "0.3.8"
 
 # Migration bucket families.
 #   odbc_to_adbc  - connector is moving from an embedded ODBC driver to the ADBC path

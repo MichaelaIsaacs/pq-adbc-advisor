@@ -119,14 +119,15 @@ def test_tenant_raw_not_sent_by_default(_isolate):
     assert "tenant_hash" in props
 
 
-def test_tenant_raw_opt_in_env_var(monkeypatch, _isolate):
+def test_tenant_raw_never_sent_v038(monkeypatch, _isolate):
+    """v0.3.8 SECURITY: the PQ_ADBC_ADVISOR_TENANT_RAW env flag was removed.
+    Setting it must have NO effect — only tenant_hash goes on the wire."""
     monkeypatch.setenv("PQ_ADBC_ADVISOR_TENANT_RAW", "1")
-    # We can't force a real tenant guid without notebookutils, so we
-    # monkeypatch _tenant_id to simulate a Fabric runtime.
     monkeypatch.setattr(_telemetry, "_tenant_id", lambda: "72f988bf-86f1-41af-91ab-2d7cd011db47")
     _telemetry.emit_scan_summary(_report(pinned=1), enabled=True)
     _, props = _isolate[0]
-    assert props["tenant_id"] == "72f988bf-86f1-41af-91ab-2d7cd011db47"
+    assert "tenant_id" not in props, "v0.3.8 must not send raw tenant_id"
+    assert "tenant_hash" in props, "tenant_hash is still the correct signal"
 
 
 # ---- Opt out ---------------------------------------------------------- #

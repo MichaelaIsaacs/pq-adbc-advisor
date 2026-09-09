@@ -234,22 +234,18 @@ def test_scan_complete_does_not_send_raw_user_id_by_default(monkeypatch):
         )
 
 
-def test_bug2_raw_flag_omits_hash_to_prevent_correlation(monkeypatch):
-    """Bug 2 (HIGH privacy): when the opt-in raw flag is on, the event
-    carries ONLY the raw user_id and OMITS user_hash. Otherwise anyone
-    with historical App Insights read could build a {hash → raw} lookup
-    and retroactively deanonymize every prior scan_complete."""
+def test_bug2_raw_flag_removed_v038(monkeypatch):
+    """v0.3.8 SECURITY: the PQ_ADBC_ADVISOR_USER_RAW env flag was REMOVED
+    as part of the Natasha security review. Setting it must have no effect —
+    only user_hash is ever sent."""
     monkeypatch.setenv("PQ_ADBC_ADVISOR_USER_ID", "alice-uuid")
     monkeypatch.setenv("PQ_ADBC_ADVISOR_USER_RAW", "1")
     events, fake_post = _capture()
     with patch.object(telemetry.requests, "post", side_effect=fake_post):
         telemetry.emit_scan_summary(_mk_report(), enabled=True)
     p = _props(events[0])
-    assert p.get("user_id") == "alice-uuid"
-    assert "user_hash" not in p, (
-        "when raw flag is on, user_hash MUST be omitted so the raw+hash "
-        "pair can't be used to build a lookup table against historical rows"
-    )
+    assert "user_id" not in p, "v0.3.8 must not send raw user_id even with env flag"
+    assert "user_hash" in p, "user_hash must still be the only user signal"
 
 
 # --------------------------------------------------------------------------- #
