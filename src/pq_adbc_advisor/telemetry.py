@@ -66,8 +66,43 @@ BAKED_IN_CONNECTION_STRING = (
 )
 
 
+# v0.3.8 SECURITY: telemetry endpoint allowlist. The env-var override of
+# the connection string could previously redirect telemetry (and buffered
+# envelopes) to any URL. Now we require HTTPS and either an allowlisted
+# App Insights host, or an explicit dev-mode escape hatch. Attackers with
+# process-env control can still exfiltrate hashed telemetry via dev mode,
+# but they have to opt into that mode explicitly.
+_APPINSIGHTS_HOST_ALLOWLIST = (
+    ".in.applicationinsights.azure.com",
+    ".livediagnostics.monitor.azure.com",
+    ".services.visualstudio.com",  # legacy default
+)
+
+
+def _endpoint_is_allowed(endpoint: str) -> bool:
+    """v0.3.8: endpoint must be HTTPS + on the App Insights allowlist,
+    unless PQ_ADBC_ADVISOR_DEV_TELEMETRY=1 is set for local dev."""
+    if os.environ.get("PQ_ADBC_ADVISOR_DEV_TELEMETRY", "").lower() in ("1", "on", "true"):
+        return True
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(endpoint)
+        if parsed.scheme != "https":
+            return False
+        host = (parsed.hostname or "").lower()
+        return any(host.endswith(suf) for suf in _APPINSIGHTS_HOST_ALLOWLIST)
+    except Exception:
+        return False
+
+
 def _resolve_connection() -> tuple[str, str] | None:
-    """Return (ikey, ingestion_endpoint) or None when telemetry is disabled."""
+    """Return (ikey, ingestion_endpoint) or None when telemetry is disabled.
+
+    v0.3.8 SECURITY: rejects endpoints that aren't HTTPS or aren't on the
+    App Insights host allowlist. Prevents env-var abuse from redirecting
+    telemetry to an attacker-controlled server. Set
+    PQ_ADBC_ADVISOR_DEV_TELEMETRY=1 to bypass for local dev.
+    """
     conn = (
         os.environ.get("PQ_ADBC_ADVISOR_APPINSIGHTS_CONNECTION_STRING")
         or BAKED_IN_CONNECTION_STRING
@@ -93,11 +128,20 @@ def _resolve_connection() -> tuple[str, str] | None:
             ikey = env_ikey
     if not ikey or ikey.startswith("00000000"):
         return None
+    # v0.3.8: reject endpoints that aren't on the allowlist.
+    if not _endpoint_is_allowed(endpoint):
+        return None
     return ikey, endpoint
 
 
 def _telemetry_enabled(explicit: bool) -> bool:
     if not explicit:
+        return False
+    # v0.3.8 SECURITY: session-scoped hard opt-out always wins. Once
+    # disable_telemetry() has been called this kernel, telemetry is off
+    # for this process regardless of what state files claim. Defeats the
+    # tampered-file / redirected-write class of attacks Natasha flagged.
+    if _state.hard_opt_out_active():
         return False
     # Environment variable opt-out (works for CI / local dev but not always
     # discoverable from a Fabric notebook - see set_telemetry_opt_out below
@@ -121,23 +165,38 @@ def _telemetry_enabled(explicit: bool) -> bool:
 def disable_telemetry() -> bool:
     """Persistently disable anonymous telemetry for this workspace.
 
-    Writes an opt-out flag to /lakehouse/default/Files/pq_adbc_advisor_state.json
-    that survives kernel restarts. Prefer this over environment variables in
-    Fabric notebooks.
+    v0.3.8 SECURITY: sets a session-scoped HARD opt-out immediately so this
+    kernel stops sending regardless of downstream file-persistence success.
+    Then writes the opt-out to /lakehouse/default/Files and verifies the
+    write is durable by reading it back. If verification fails (Fabric
+    lakehouse redirect footgun), the API returns False AND prints a
+    blocking warning — the customer knows the choice is session-only.
 
-    Returns True when the opt-out was successfully persisted, False when we
-    couldn't reach the state file (e.g. no default lakehouse attached, in
-    which case the opt-out is still honored for the current process).
+    Prefer this over environment variables in Fabric notebooks.
+
+    Returns True when the opt-out was successfully persisted AND verified,
+    False otherwise. In both cases the current process no longer sends
+    telemetry — the return value only reports whether the choice survives
+    kernel restart.
     """
-    saved = _state.set_telemetry_opt_out(True)
-    if saved:
-        print("[pq-adbc-advisor] Anonymous telemetry disabled for this workspace.")
+    # Step 1: session-scoped hard opt-out. Never fails.
+    _state.set_hard_opt_out()
+
+    # Step 2: try to persist. May silently redirect on Fabric.
+    written = _state.set_telemetry_opt_out(True)
+
+    # Step 3: verify. Read it back through the same path logic.
+    verified = written and _state.verify_opt_out_durable()
+
+    if verified:
+        print("[pq-adbc-advisor] Anonymous telemetry disabled and persisted.")
         print("[pq-adbc-advisor] Run enable_telemetry() to re-enable.")
     else:
-        print("[pq-adbc-advisor] Telemetry opt-out set for this session.")
-        print("[pq-adbc-advisor] (Could not persist to lakehouse - the opt-out")
-        print("[pq-adbc-advisor]  applies to this kernel session only.)")
-    return saved
+        print("[pq-adbc-advisor] Anonymous telemetry disabled for this session.")
+        print("[pq-adbc-advisor] WARNING: could not verify durable persistence.")
+        print("[pq-adbc-advisor] The opt-out applies to this kernel only.")
+        print("[pq-adbc-advisor] Attach a default lakehouse and re-run to persist.")
+    return bool(verified)
 
 
 def enable_telemetry() -> bool:
@@ -211,13 +270,15 @@ def _maybe_print_first_run_notice(is_first_run: bool) -> None:
         pass
 
 
-def _send_raw_tenant() -> bool:
-    """True when we should send the raw AAD tenant guid alongside tenant_hash."""
-    return os.environ.get("PQ_ADBC_ADVISOR_TENANT_RAW", "").lower() in ("1", "on", "true")
-
-
 def _tenant_id() -> str:
-    """Best-effort raw AAD tenant guid from the Fabric notebook runtime."""
+    """Best-effort raw AAD tenant guid from the Fabric notebook runtime.
+
+    v0.3.8 SECURITY: raw tenant_id is used only to compute tenant_hash.
+    We do NOT send the raw guid upstream — no env-var escape hatch exists.
+    The prior env flag ``PQ_ADBC_ADVISOR_TENANT_RAW`` has been removed
+    because it contradicted the customer-facing telemetry contract that
+    only hashes are transmitted (Natasha review, Sept 2026).
+    """
     try:
         import notebookutils  # type: ignore
         ctx = getattr(notebookutils.runtime, "context", None)
@@ -301,15 +362,17 @@ def _user_hash(user_id: str) -> str:
 def _send_raw_user() -> bool:
     """True when we should send the raw AAD user id alongside user_hash.
 
-    Off by default (privacy). Opt-in flag mirrors PQ_ADBC_ADVISOR_TENANT_RAW.
-
-    v0.3.6 (bug bash Bug 2): when this is on, the emitted event carries
-    ONLY the raw user_id (as `user_id`) and OMITS `user_hash` — otherwise
-    anyone with historical App Insights read would be able to build a
-    permanent {user_hash → user_id} lookup and retroactively deanonymize
-    every prior scan_complete row.
+    Off by default (privacy). REMOVED in v0.3.8 as part of the
+    Natasha security review. The prior env-var opt-in path contradicted
+    the customer-facing telemetry contract (docs/telemetry.md) which
+    promises hashes only. Kept as a stub function that always returns
+    False so any lingering call site is a no-op instead of a crash.
     """
-    return os.environ.get("PQ_ADBC_ADVISOR_USER_RAW", "").lower() in ("1", "on", "true")
+    return False
+
+
+def _defunct_removed_user_raw_flag() -> None:
+    """Placeholder: PQ_ADBC_ADVISOR_USER_RAW was removed in v0.3.8."""
 
 
 # --------------------------------------------------------------------------- #
@@ -345,16 +408,12 @@ def _estimated_manual_hours_saved(artifacts_scanned: int) -> float:
 
 def _base_properties(tenant_id: str, workspace_id: str, run_id: str, duration: float) -> dict[str, Any]:
     user_id, user_source = _user_id()  # v0.3.6 — headline "how many people" KPI
+    # v0.3.8 SECURITY: only hashes on the wire. Raw-ID env flags removed.
     props: dict[str, Any] = {
         "version": TOOL_VERSION,
         "surface": "notebook",  # spec-defined values: notebook | cli_fabric | cli_pbix | external_tool
         "mode": "diagnose",     # v0 is diagnose-only
         "tenant_hash": _tenant_hash(tenant_id),
-        # v0.3.6 Bug 2 fix — send hash XOR raw, never both. Preserves the
-        # user_hash contract on 99.99% of events while opt-in-raw callers
-        # still get their join key.
-        # v0.3.6 Bug 5 fix — provenance tag so KQL can filter to only
-        # trustworthy AAD-sourced hashes for the unique-user KPI.
         "workspace_id": workspace_id or "",
         "run_id": run_id,
         "session_id": _SESSION_ID,  # v0.3.4 — same across scan+validate in one kernel
@@ -362,19 +421,9 @@ def _base_properties(tenant_id: str, workspace_id: str, run_id: str, duration: f
         "duration_seconds": round(duration, 2),
         "python": platform.python_version(),
         "platform": platform.system(),
+        "user_hash": _user_hash(user_id),
         "user_hash_source": user_source,  # "aad" | "env" | ""
     }
-    if _send_raw_user() and user_id:
-        # Opt-in raw user id, mirroring the tenant_id escape hatch.
-        # We deliberately DO NOT include user_hash on the same event —
-        # otherwise the pair permanently deanonymizes every previously
-        # emitted user_hash row.
-        props["user_id"] = user_id
-    else:
-        props["user_hash"] = _user_hash(user_id)
-    if _send_raw_tenant() and tenant_id:
-        # Opt-in field so Michaela can join to MSSales for TPID.
-        props["tenant_id"] = tenant_id
     return props
 
 

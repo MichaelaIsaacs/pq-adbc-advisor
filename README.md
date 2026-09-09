@@ -143,6 +143,29 @@ non-interactive context. The SP needs the same rights as a delegated
 user would (Workspace Contributor for `scan_workspace`, Fabric Admin
 for `scan_tenant`).
 
+### Tenant-wide scan permissions (`scan_tenant`)
+
+`scan_tenant()` calls the **Fabric admin Scanner API**, which is a
+high-privilege surface. If you run tenant-wide scans via Service
+Principal, you need a **dedicated app registration** for this tool
+(never reuse an existing SP with broader scopes).
+
+Required setup (documented Sept 2026, Natasha security review MED-2):
+
+| Item | Requirement |
+|---|---|
+| **App registration** | Dedicated Entra app for pq-adbc-advisor only. Do not reuse. |
+| **API permissions** | Power BI Service → `Tenant.Read.All` (application). Grant admin consent. |
+| **Admin consent** | Tenant admin must grant; SP delegated flow is not supported for admin APIs. |
+| **Fabric tenant setting** | Enable *"Allow service principals to use read-only Power BI admin APIs"* AND add the SP to the security group that setting references. Setting lives in Power BI Admin Portal → Tenant settings → Admin API settings. |
+| **Fabric role** | Not required at the workspace level — the Scanner API is admin-only. |
+| **Data returned** | The Scanner API returns workspace + item metadata + dataset expressions + datasource connection details. `scan_tenant()` sets `getArtifactUsers=False` so user lists are excluded (v0.3.8 minimization). |
+| **Scope check** | Because the SP uses MSAL `.default` scope, the effective permissions are whatever the app registration has been granted admin consent for. Use a dedicated app registration to keep this minimal. |
+
+If the SP can't be granted `Tenant.Read.All`, fall back to running
+`scan_workspace()` per workspace with a delegated token — no admin
+consent required.
+
 ---
 
 ## What the impact report tells you
