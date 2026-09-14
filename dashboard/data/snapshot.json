@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-09T18:04:35Z",
+  "generated_at": "2026-09-14T18:24:07Z",
   "repo": "MichaelaIsaacs/pq-adbc-advisor",
   "reach": {
-    "scans": 43,
-    "workspaces": 18,
+    "scans": 65,
+    "workspaces": 28,
     "tenants": 1
   },
   "resolution": {
@@ -11,13 +11,13 @@
     "resolved_high": 1,
     "resolved_medium": 0,
     "resolved_custom_dsn": 0,
-    "return_scans": 6
+    "return_scans": 10
   },
   "value": {
-    "hours_saved": 142.65,
-    "inspected": 2853,
-    "median_coverage": 60,
-    "sempy_used_pct": 53.48837209302326
+    "hours_saved": 143.04999999999998,
+    "inspected": 2861,
+    "median_coverage": 47,
+    "sempy_used_pct": 58.46153846153846
   },
   "trend": [
     {
@@ -64,9 +64,34 @@
       "timestamp": "2026-09-09T00:00:00Z",
       "scans": 12,
       "workspaces": 6
+    },
+    {
+      "timestamp": "2026-09-10T00:00:00Z",
+      "scans": 14,
+      "workspaces": 6
+    },
+    {
+      "timestamp": "2026-09-11T00:00:00Z",
+      "scans": 6,
+      "workspaces": 4
+    },
+    {
+      "timestamp": "2026-09-12T00:00:00Z",
+      "scans": 1,
+      "workspaces": 1
+    },
+    {
+      "timestamp": "2026-09-14T00:00:00Z",
+      "scans": 1,
+      "workspaces": 1
     }
   ],
   "versions": [
+    {
+      "version": "0.3.8",
+      "scans": 22,
+      "workspaces": 12
+    },
     {
       "version": "0.3.7",
       "scans": 12,
@@ -127,39 +152,6 @@
       "version": "0.3.7"
     },
     {
-      "workspace": "aae52270-cd49-46da-bb44-bb1e99510149",
-      "timestamp": "2026-09-09T13:17:13Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 0,
-      "version": "0.3.7"
-    },
-    {
-      "workspace": "(tenant)",
-      "timestamp": "2026-09-09T13:41:09Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 100,
-      "version": "0.3.7"
-    },
-    {
-      "workspace": "bc901c0a-5bcf-4f65-a614-98f09b5f88cb",
-      "timestamp": "2026-09-09T15:12:03Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 29,
-      "version": "0.3.7"
-    },
-    {
       "workspace": "a09c94da-ddcf-4cf7-ba24-8c11cfb4d67b",
       "timestamp": "2026-09-09T08:56:35Z",
       "is_first": "True",
@@ -169,6 +161,17 @@
       "resolved_pinned": 0,
       "coverage": 20,
       "version": "0.3.7"
+    },
+    {
+      "workspace": "bc901c0a-5bcf-4f65-a614-98f09b5f88cb",
+      "timestamp": "2026-09-10T09:40:00Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 29,
+      "version": "0.3.8"
     },
     {
       "workspace": "be46bbda-383c-43b7-b6c7-d0116e53f515",
@@ -193,6 +196,105 @@
       "version": "0.3.6"
     },
     {
+      "workspace": "9372a95f-5512-4b60-b7ab-5471f3c77bde",
+      "timestamp": "2026-09-14T15:19:46Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 21,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "aae52270-cd49-46da-bb44-bb1e99510149",
+      "timestamp": "2026-09-09T13:17:13Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 0,
+      "version": "0.3.7"
+    },
+    {
+      "workspace": "(tenant)",
+      "timestamp": "2026-09-10T09:37:55Z",
+      "is_first": "False",
+      "run_count": 4,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "00c2ec5a-5c64-4791-9368-8cf338335778",
+      "timestamp": "2026-09-10T09:09:17Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 33,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "54c1b79a-3ce1-45b2-8b66-4aa70336894d",
+      "timestamp": "2026-09-10T09:53:19Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 20,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "965fedeb-9ec0-4dee-8020-4ce4d3be340c",
+      "timestamp": "2026-09-11T16:23:25Z",
+      "is_first": "False",
+      "run_count": 2,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 47,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "ef6688e5-da27-47e0-87d6-8cd85cc231bc",
+      "timestamp": "2026-09-11T16:31:46Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 44,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "17736746-5533-4d01-b60e-e8a2946fc696",
+      "timestamp": "2026-09-11T16:34:17Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 33,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "491eed41-6ae5-4be1-b729-bf9b6186b278",
+      "timestamp": "2026-09-11T18:46:13Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 22,
+      "version": "0.3.8"
+    },
+    {
       "workspace": "1751cb16-aafa-493b-9cc6-29f4b55b6daf",
       "timestamp": "2026-09-04T18:34:58Z",
       "is_first": "True",
@@ -202,6 +304,61 @@
       "resolved_pinned": 0,
       "coverage": 46,
       "version": "0.3.6"
+    },
+    {
+      "workspace": "d2a25cc1-3553-4375-90df-1953384a1378",
+      "timestamp": "2026-09-04T18:31:50Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 36,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "0daeb94a-005e-409a-8af8-050233e94e44",
+      "timestamp": "2026-09-12T15:23:49Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 49,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "33be09e5-e022-4311-9749-e784a1d14875",
+      "timestamp": "2026-09-02T20:19:33Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 60,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "d4e139f8-70c3-4634-a88a-1f756580fee9",
+      "timestamp": "2026-09-10T08:23:26Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 46,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "01d84306-9742-49fa-96f8-69a6c5d8fa1d",
+      "timestamp": "2026-09-10T08:31:41Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 45,
+      "version": "0.3.8"
     },
     {
       "workspace": "72a01254-ff0e-446e-9bb8-7dcb9105ddbf",
@@ -237,28 +394,6 @@
       "version": "0.3.6"
     },
     {
-      "workspace": "33be09e5-e022-4311-9749-e784a1d14875",
-      "timestamp": "2026-09-02T20:19:33Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 60,
-      "version": "0.3.6"
-    },
-    {
-      "workspace": "d2a25cc1-3553-4375-90df-1953384a1378",
-      "timestamp": "2026-09-04T18:31:50Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 36,
-      "version": "0.3.6"
-    },
-    {
       "workspace": "3a6042e0-191e-4062-988e-640a4df4624d",
       "timestamp": "2026-09-08T12:08:42Z",
       "is_first": "False",
@@ -268,6 +403,17 @@
       "resolved_pinned": -1,
       "coverage": 60,
       "version": "0.3.6"
+    },
+    {
+      "workspace": "4e70507f-c8cb-4552-88d1-cd4e06ce2d5a",
+      "timestamp": "2026-08-24T23:23:26Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 2,
+      "current_pinned": 2,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.3.3"
     },
     {
       "workspace": "smoke-test-ws-guid-11111111",
@@ -290,35 +436,24 @@
       "resolved_pinned": null,
       "coverage": null,
       "version": "0.2.1"
-    },
-    {
-      "workspace": "4e70507f-c8cb-4552-88d1-cd4e06ce2d5a",
-      "timestamp": "2026-08-24T23:23:26Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 2,
-      "current_pinned": 2,
-      "resolved_pinned": null,
-      "coverage": null,
-      "version": "0.3.3"
     }
   ],
   "skip_reasons": [
     {
       "reason": "type_not_inspected",
-      "count": 643
+      "count": 1048
     },
     {
       "reason": "no_external_connectors",
-      "count": 366
+      "count": 393
     },
     {
       "reason": "no_migrating_connectors",
-      "count": 147
+      "count": 290
     },
     {
       "reason": "definition_parsed_but_no_expressions",
-      "count": 38
+      "count": 79
     },
     {
       "reason": "deleted_during_scan",
@@ -328,7 +463,7 @@
   "state_backends": [
     {
       "backend": "lakehouse",
-      "scans": 28
+      "scans": 50
     },
     {
       "backend": "",
@@ -342,62 +477,63 @@
   "first_vs_return": [
     {
       "is_first_run": "True",
-      "scans": 37
+      "scans": 55
     },
     {
       "is_first_run": "False",
-      "scans": 6
+      "scans": 10
     }
   ],
   "github": {
-    "run_id": "1eb1a130f4b14c829290f4b37217f9cf",
-    "clones_14d": "163",
-    "unique_cloners_14d": "53",
-    "clones_day_0_date": "2026-08-25T00:00:00.0000000Z",
-    "clones_day_0_count": "0",
-    "clones_day_0_unique": "0",
-    "clones_day_1_date": "2026-08-26T00:00:00.0000000Z",
-    "clones_day_1_count": "1",
-    "clones_day_1_unique": "1",
-    "clones_day_2_date": "2026-08-27T00:00:00.0000000Z",
-    "clones_day_2_count": "1",
-    "clones_day_2_unique": "1",
-    "clones_day_3_date": "2026-08-28T00:00:00.0000000Z",
-    "clones_day_3_count": "1",
-    "clones_day_3_unique": "1",
-    "clones_day_4_date": "2026-08-29T00:00:00.0000000Z",
-    "clones_day_4_count": "1",
-    "clones_day_4_unique": "1",
-    "clones_day_5_date": "2026-08-30T00:00:00.0000000Z",
-    "clones_day_5_count": "0",
-    "clones_day_5_unique": "0",
-    "clones_day_6_date": "2026-08-31T00:00:00.0000000Z",
-    "clones_day_6_count": "54",
-    "clones_day_6_unique": "14",
-    "clones_day_7_date": "2026-09-01T00:00:00.0000000Z",
-    "clones_day_7_count": "15",
-    "clones_day_7_unique": "6",
-    "clones_day_8_date": "2026-09-02T00:00:00.0000000Z",
-    "clones_day_8_count": "16",
-    "clones_day_8_unique": "7",
-    "clones_day_9_date": "2026-09-03T00:00:00.0000000Z",
-    "clones_day_9_count": "8",
-    "clones_day_9_unique": "4",
-    "clones_day_10_date": "2026-09-04T00:00:00.0000000Z",
-    "clones_day_10_count": "26",
-    "clones_day_10_unique": "14",
-    "clones_day_11_date": "2026-09-05T00:00:00.0000000Z",
-    "clones_day_11_count": "3",
-    "clones_day_11_unique": "2",
-    "clones_day_12_date": "2026-09-06T00:00:00.0000000Z",
-    "clones_day_12_count": "6",
-    "clones_day_12_unique": "3",
-    "clones_day_13_date": "2026-09-07T00:00:00.0000000Z",
-    "clones_day_13_count": "31",
-    "clones_day_13_unique": "16",
+    "clones_14d": "330",
+    "unique_cloners_14d": "100",
+    "clones_day_0_date": "2026-08-31T00:00:00.0000000Z",
+    "clones_day_0_count": "54",
+    "clones_day_0_unique": "14",
+    "clones_day_1_date": "2026-09-01T00:00:00.0000000Z",
+    "clones_day_1_count": "15",
+    "clones_day_1_unique": "6",
+    "clones_day_2_date": "2026-09-02T00:00:00.0000000Z",
+    "clones_day_2_count": "16",
+    "clones_day_2_unique": "7",
+    "clones_day_3_date": "2026-09-03T00:00:00.0000000Z",
+    "clones_day_3_count": "8",
+    "clones_day_3_unique": "4",
+    "clones_day_4_date": "2026-09-04T00:00:00.0000000Z",
+    "clones_day_4_count": "26",
+    "clones_day_4_unique": "14",
+    "clones_day_5_date": "2026-09-05T00:00:00.0000000Z",
+    "clones_day_5_count": "3",
+    "clones_day_5_unique": "2",
+    "clones_day_6_date": "2026-09-06T00:00:00.0000000Z",
+    "clones_day_6_count": "6",
+    "clones_day_6_unique": "3",
+    "clones_day_7_date": "2026-09-07T00:00:00.0000000Z",
+    "clones_day_7_count": "31",
+    "clones_day_7_unique": "16",
+    "clones_day_8_date": "2026-09-08T00:00:00.0000000Z",
+    "clones_day_8_count": "51",
+    "clones_day_8_unique": "20",
+    "clones_day_9_date": "2026-09-09T00:00:00.0000000Z",
+    "clones_day_9_count": "53",
+    "clones_day_9_unique": "21",
+    "clones_day_10_date": "2026-09-10T00:00:00.0000000Z",
+    "clones_day_10_count": "31",
+    "clones_day_10_unique": "12",
+    "clones_day_11_date": "2026-09-11T00:00:00.0000000Z",
+    "clones_day_11_count": "9",
+    "clones_day_11_unique": "6",
+    "clones_day_12_date": "2026-09-12T00:00:00.0000000Z",
+    "clones_day_12_count": "18",
+    "clones_day_12_unique": "10",
+    "clones_day_13_date": "2026-09-13T00:00:00.0000000Z",
+    "clones_day_13_count": "9",
+    "clones_day_13_unique": "5",
     "clones_days": "14",
-    "views_14d": "10",
-    "unique_viewers_14d": "1",
+    "views_14d": "59",
+    "unique_viewers_14d": "7",
+    "top_referrer_1": "github.com",
+    "top_referrer_1_count": "15",
     "release_downloads_v0_3_1": "0",
     "release_downloads_v0_3_0": "0",
     "release_downloads_v0_2_4": "0",
@@ -411,7 +547,8 @@
     "open_issues": "6",
     "subscribers": "0",
     "repo": "MichaelaIsaacs/pq-adbc-advisor",
-    "source": "github_traffic_daily"
+    "source": "github_traffic_daily",
+    "run_id": "371f1ac099644653bf6760d9b2dec135"
   },
   "releases": [
     {
