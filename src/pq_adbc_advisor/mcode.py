@@ -48,6 +48,83 @@ _IMPL_RE = re.compile(r"""Implementation\s*=\s*['"]([^'"]+)['"]""", re.IGNORECAS
 # Try to pull out an endpoint / server name from a call's argument list.
 _FIRST_STRING_RE = re.compile(r'"([^"]+)"')
 
+# --------------------------------------------------------------------------- #
+# Secret redaction (v0.3.3 bug bash #3)
+# --------------------------------------------------------------------------- #
+#
+# Excerpts and endpoint hints can contain literal secrets in two forms:
+#   1) DSN-style connection strings: "Password=hunter2;PWD=abc;Token=eyJ...".
+#   2) M shared-parameter default values that get sliced into an excerpt
+#      when the parameter definition sits near the Odbc.Query(...) call:
+#      shared ApiKey = "sk-live-..." meta [IsParameterQuery=true, ...];
+#
+# Both forms leak into HTML today. This scrubber runs on every excerpt and
+# endpoint_hint before they are stored on ConnectorCall.
+#
+# We are intentionally conservative: we only redact clearly sensitive keys
+# (password, pwd, token, secret, apikey, api_key, accountkey, sas, authorization).
+# User/UID stay visible because they're often needed for triage.
+
+_SECRET_KEYS = (
+    r"password|pwd|pass|token|secret|apikey|api[_\- ]?key|accountkey|"
+    r"account[_\- ]?key|shared[_\- ]?access[_\- ]?signature|sas|authorization|bearer"
+)
+
+# Connection-string style: Key=value; or Key="value" until ; or end.
+_SECRET_KV_RE = re.compile(
+    rf"\b({_SECRET_KEYS})\s*=\s*(\"[^\"]*\"|'[^']*'|[^;\s]+)",
+    re.IGNORECASE,
+)
+
+# M shared-parameter form: shared Name = "..." meta [IsParameterQuery=true, ...];
+# When a sensitive param default (name matches one of the secret keys) sits
+# adjacent to a call we caught, its string value can end up in the excerpt.
+_M_PARAM_SECRET_RE = re.compile(
+    rf"\b(shared\s+({_SECRET_KEYS})[A-Za-z0-9_]*)\s*=\s*\"([^\"]+)\"",
+    re.IGNORECASE,
+)
+
+# Also scrub any JWT-shaped tokens we see in free text.
+_JWT_RE = re.compile(r"\beyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{5,}\b")
+
+
+def redact_secrets(text: str) -> str:
+    """Replace secret values in a string with ``***REDACTED***``.
+
+    Handles: DSN-style ``Key=value``, M shared-parameter defaults with
+    sensitive names, and JWT-shaped tokens in free text. Safe to call on
+    already-redacted text (idempotent).
+    """
+    if not text:
+        return text
+
+    def _kv_sub(m: "re.Match[str]") -> str:
+        key = m.group(1)
+        return f"{key}=***REDACTED***"
+
+    def _param_sub(m: "re.Match[str]") -> str:
+        lhs = m.group(1)  # "shared ApiKey"
+        return f"{lhs} = \"***REDACTED***\""
+
+    out = _SECRET_KV_RE.sub(_kv_sub, text)
+    out = _M_PARAM_SECRET_RE.sub(_param_sub, out)
+    out = _JWT_RE.sub("***REDACTED***", out)
+    return out
+
+
+# Hard cap on excerpt / endpoint_hint length. Anything past this is truncated
+# with a "(truncated)" marker so the HTML table can never blow up because a
+# customer stored a 40KB base64 blob in an M query.
+_EXCERPT_MAX_LEN = 500
+_ENDPOINT_MAX_LEN = 300
+
+
+def _truncate(text: str, cap: int) -> str:
+    if len(text) <= cap:
+        return text
+    return text[:cap] + " ...(truncated)"
+
+
 # Scan-time patterns that indicate a custom DSN-style ODBC path in M.
 _CUSTOM_DSN_PATTERNS = [
     re.compile(r"\bOdbc\.DataSource\s*\(", re.IGNORECASE),
@@ -314,7 +391,7 @@ def find_all_connectors(m_expression: str) -> list[ConnectorCall]:
         endpoint_hint: str | None = None
         ep_match = _FIRST_STRING_RE.search(arg_window)
         if ep_match:
-            endpoint_hint = ep_match.group(1)
+            endpoint_hint = _truncate(redact_secrets(ep_match.group(1)), _ENDPOINT_MAX_LEN)
 
         # Custom-DSN scoping is also bounded to this call's args, PLUS the
         # global flag - so a call to Snowflake.Databases sitting in a query
@@ -328,6 +405,7 @@ def find_all_connectors(m_expression: str) -> list[ConnectorCall]:
         start = max(0, match.start() - 40)
         end = min(len(stripped), match.end() + 160)
         excerpt = stripped[start:end].replace("\n", " ").strip()
+        excerpt = _truncate(redact_secrets(excerpt), _EXCERPT_MAX_LEN)
 
         out.append(
             ConnectorCall(

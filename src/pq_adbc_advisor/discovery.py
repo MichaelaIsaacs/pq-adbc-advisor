@@ -94,9 +94,20 @@ def _fetch_definition_and_scan(
     # by ID. Return the raw refs; the caller resolves them after the
     # Fabric Connections listing lands.
     if item_type == "DataPipeline":
-        definition = fabric_api.get_item_definition(
-            workspace_id, item_id, access_token, item_type=item_type
-        )
+        try:
+            definition = fabric_api.get_item_definition(
+                workspace_id, item_id, access_token, item_type=item_type
+            )
+        except PermissionError:
+            return {
+                "item": item, "calls": [], "skip_reason": "permission_denied",
+                "source": None, "pipeline_refs": None,
+            }
+        except FileNotFoundError:
+            return {
+                "item": item, "calls": [], "skip_reason": "deleted_during_scan",
+                "source": None, "pipeline_refs": None,
+            }
         if definition is None:
             return {
                 "item": item, "calls": [], "skip_reason": "definition_unavailable",
@@ -127,9 +138,20 @@ def _fetch_definition_and_scan(
 
     # Fallback: REST getDefinition + payload parse.
     if not expressions:
-        definition = fabric_api.get_item_definition(
-            workspace_id, item_id, access_token, item_type=item_type
-        )
+        try:
+            definition = fabric_api.get_item_definition(
+                workspace_id, item_id, access_token, item_type=item_type
+            )
+        except PermissionError:
+            return {
+                "item": item, "calls": [], "skip_reason": "permission_denied",
+                "source": None, "pipeline_refs": None,
+            }
+        except FileNotFoundError:
+            return {
+                "item": item, "calls": [], "skip_reason": "deleted_during_scan",
+                "source": None, "pipeline_refs": None,
+            }
         if definition is None:
             return {
                 "item": item, "calls": [], "skip_reason": "definition_unavailable",
@@ -234,6 +256,22 @@ def scan_workspace(
                 )
             try:
                 scan_results.append(fut.result())
+            except PermissionError:
+                # v0.3.2 (gap 5): explicit label so users see "you didn't
+                # have permission to read this item" instead of generic error.
+                item = futures[fut]
+                report.record_skipped(
+                    item.get("id", ""), item.get("displayName", ""),
+                    item.get("type", ""), reason="permission_denied",
+                )
+            except FileNotFoundError:
+                # v0.3.3 (bug bash #8): artifact deleted between enumeration
+                # and getDefinition. Distinct label from generic error.
+                item = futures[fut]
+                report.record_skipped(
+                    item.get("id", ""), item.get("displayName", ""),
+                    item.get("type", ""), reason="deleted_during_scan",
+                )
             except Exception as e:
                 item = futures[fut]
                 report.record_skipped(
