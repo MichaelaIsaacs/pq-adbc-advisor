@@ -3,6 +3,107 @@
 All notable changes to `pq-adbc-advisor` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.1] - 2026-08-24
+
+UX follow-up addressing David Coe's review of v0.3.0 (Thu 2026-08-21). No
+behavior changes to scanning or risk classification — this is a report
+rendering, click-through, and gateway-clarity release.
+
+### Interactive filter toolbar
+
+The HTML report now includes a filter toolbar at the top of the
+"Connections by connector" section with four buttons:
+
+- **All (n)** — default view.
+- **Will fail (n)** — RISK_HIGH only (ODBC-pinned without a gateway).
+- **Needs review (n)** — RISK_MEDIUM + RISK_UNKNOWN (gateway-backed pin,
+  custom DSN, or gateway detection failed). This bucket now matches the
+  KPI card of the same name.
+- **Ready (n)** — RISK_LOW (tenant switch handles them cleanly).
+
+Vanilla JS with a `window.__pqaFilterInit` idempotency guard and a
+`MutationObserver` so re-executed cells and additional report objects
+bind cleanly. Empty connector groups auto-collapse after filter so the
+view doesn't flash "Snowflake" headings above nothing.
+
+### Fabric portal deep-links on the artifact name
+
+The artifact **name itself** in the `In: <Name>` line is now the
+clickable link — clicking "HighRiskModel" opens that specific
+semantic model in the Fabric portal so you can edit it for migration.
+No separate "Open" pill (David flagged that as ambiguous).
+
+- `SemanticModel` → `.../groups/{ws}/datasets/{id}`
+- `Dataflow` → `.../groups/{ws}/dataflows/{id}`
+- `DataPipeline` → `.../groups/{ws}/pipelines/{id}`
+
+Links open in a new tab with `rel="noopener noreferrer"` so the Fabric
+portal cannot access `window.opener` back into the notebook.
+
+Fallback for unknown item types goes to `.../groups/{ws}/list`.
+
+### Explicit tri-state gateway chip
+
+Gateway detection has always been tri-state — id / None / "unknown" —
+but pre-0.3.1 the HTML rendered no chip at all for the unknown case,
+which David flagged as ambiguous. Every migrating row now shows one of:
+
+- **via gateway** (ok tone) — dataset has a bound gateway.
+- **no gateway** (fail tone) — dataset has no gateway; call will fail.
+- **gateway: unknown** (warn tone) — `/datasources` call failed or
+  returned non-JSON; treat as `RISK_UNKNOWN`, not `RISK_HIGH`.
+
+### KPI ↔ filter parity fix
+
+The `Needs review` KPI card was counting `RISK_MEDIUM` only, while the
+filter button counted `RISK_MEDIUM + RISK_UNKNOWN`. On a workspace with
+gateway-detection failures the two disagreed. KPI now counts
+`MEDIUM + UNKNOWN` to match.
+
+### Python filter API
+
+For programmatic slicing:
+
+```python
+report.will_fail()      # RISK_HIGH only
+report.needs_review()   # RISK_MEDIUM + RISK_UNKNOWN
+report.ready_only()     # RISK_LOW only
+report.filtered("will_fail")     # str alias
+report.filtered(["high","medium"])  # list of risks
+```
+
+Filtered reports preserve `fabric_connections`, `observed_types`,
+`used_sempy_path`, `sempy_hits`, `show_non_migrating`, and
+`pipeline_calls`. Within each artifact, only matching hits are kept.
+
+### Tests
+
+168 tests total (146 baseline + 22 v0.3.1). New tests cover:
+
+- Portal URL helper across all item types.
+- Filter toolbar counts, `data-risk-filter` attribute, filter script
+  emitted exactly once.
+- Tri-state gateway chip.
+- KPI-to-filter parity regression.
+- Artifact-name link `noopener noreferrer` regression.
+- XSS regression: HTML-carrying item names must be escaped.
+- Filter API semantics (str / list / preservation / partial-hit).
+
+### Security audit
+
+A security-review pass on the v0.3.1 diff verified:
+
+- Bearer tokens are constructed via `f"Bearer {token}"` in-header only
+  (confirmed by raw-byte inspection; the tokenless display in some
+  viewers is a tool-side redaction artifact, not the on-disk source).
+- HTML rendering escapes every user-controlled field. Only integer
+  counts get interpolated into the filter toolbar; button labels and
+  `data-filter` values are static literals.
+- `fabric_portal_url()` interpolates into path segments after a fixed
+  `https://app.fabric.microsoft.com/` authority — no SSRF surface.
+- Gateway tri-state discipline is preserved end-to-end; there is no
+  code path that silently degrades "unknown" to "no gateway".
+
 ## [0.3.0] - 2026-08-20
 
 Coverage + auth expansion. Ships the four remaining T1 items from the
