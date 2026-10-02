@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-01T15:25:59Z",
+  "generated_at": "2026-10-02T14:43:15Z",
   "repo": "MichaelaIsaacs/pq-adbc-advisor",
   "reach": {},
   "resolution": {},
@@ -11,15 +11,10 @@
   "state_backends": [],
   "first_vs_return": [],
   "github": {
-    "clones_14d": 685,
-    "unique_cloners_14d": 280
+    "clones_14d": 629,
+    "unique_cloners_14d": 253
   },
   "clones_history": [
-    {
-      "timestamp": "2026-09-17T00:00:00Z",
-      "count": 100,
-      "uniques": 47
-    },
     {
       "timestamp": "2026-09-18T00:00:00Z",
       "count": 35,
@@ -84,6 +79,11 @@
       "timestamp": "2026-09-30T00:00:00Z",
       "count": 60,
       "uniques": 29
+    },
+    {
+      "timestamp": "2026-10-01T00:00:00Z",
+      "count": 44,
+      "uniques": 23
     }
   ],
   "releases": [
