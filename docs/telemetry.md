@@ -72,7 +72,7 @@ Everything on the wire is either an integer, a short enum, or a hex hash. There 
 | `estimated_manual_hours_saved` | float | `inspected_artifacts × 3 min / 60` — rough proxy vs manual triage |
 | `sempy_used` | bool | Whether we used the SemPy library or REST API |
 | `sempy_hits` | int | Item-definition fetches via SemPy |
-| `skipped_count` | int | Items we couldn't parse (e.g. DirectLake) |
+| `skipped_count` | int | Items we couldn't parse or intentionally did not inspect (e.g. Report, Notebook, DirectLake-only semantic model with no M expressions) |
 | `skipped_by_reason_<name>` | int | One field per skip reason |
 | `fabric_connections_error` | str | Short error label (e.g. `no_workspace_admin`) or empty string |
 

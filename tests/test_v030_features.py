@@ -134,7 +134,7 @@ def test_pipeline_extract_legacy_inline_linked_service():
     assert refs[0]["inline_type"] == "SnowflakeLinkedService"
 
 
-def test_pipeline_refs_resolve_to_migrating_when_connection_maps_to_snowflake():
+def test_pipeline_refs_resolve_to_non_migrating_when_connection_maps_to_snowflake():
     connections = {"conn-1": {
         "id": "conn-1",
         "displayName": "SF Prod",
@@ -152,8 +152,8 @@ def test_pipeline_refs_resolve_to_migrating_when_connection_maps_to_snowflake():
     assert len(calls) == 1
     c = calls[0]
     assert "Snowflake" in c.connector_kind
-    assert c.is_migrating is True
-    assert "snowflake" in c.migration
+    assert c.is_migrating is False
+    assert c.migration == "none"
 
 
 def test_pipeline_refs_resolve_to_unresolved_when_conn_id_unknown():
@@ -194,12 +194,9 @@ def test_pipeline_scan_end_to_end_via_discovery(monkeypatch):
         workspace_id="ws", access_token="t",
         include_fabric_connections=True, telemetry_enabled=False, verbose=False,
     )
-    assert len(r.artifacts) == 1
-    assert r.artifacts[0].item_type == "DataPipeline"
+    assert len(r.artifacts) == 0
+    assert r.skipped_by_reason()["no_migrating_connectors"] == 1
     assert r.pipeline_calls == 1
-    call = r.artifacts[0].hits[0]
-    assert "Snowflake" in call.connector_kind
-    assert call.is_migrating is True
     # Coverage should now count DataPipeline as inspected.
     assert "DataPipeline" in r.coverage()["inspected_types"]
 
