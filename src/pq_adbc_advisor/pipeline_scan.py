@@ -55,11 +55,7 @@ from __future__ import annotations
 import json
 from typing import Any, Iterable
 
-from .constants import (
-    IMPACTED_CONNECTORS,
-    MIGRATION_NONE,
-    friendly_name_for_prefix,
-)
+from .constants import MIGRATION_NONE, friendly_name_for_prefix
 from .mcode import ConnectorCall
 
 
@@ -77,6 +73,30 @@ _CONN_REF_KEYS = (
 )
 
 
+def _as_dict(value: Any) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value: Any) -> list:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        return list(value.values())
+    return []
+
+
+def _string_id(value: Any) -> str | None:
+    """Normalize Fabric connection references across API shape drift."""
+    if isinstance(value, str) and value:
+        return value
+    if isinstance(value, dict):
+        for key in ("id", "connectionId", "connection", "referenceName", "name"):
+            nested = _string_id(value.get(key))
+            if nested:
+                return nested
+    return None
+
+
 def extract_connection_refs(definition: dict) -> list[dict[str, Any]]:
     """Return connection references pulled from a Data Pipeline definition.
 
@@ -92,9 +112,11 @@ def extract_connection_refs(definition: dict) -> list[dict[str, Any]]:
     """
     if not definition or "definition" not in definition:
         return []
-    parts = definition["definition"].get("parts", [])
+    parts = _as_list(_as_dict(definition["definition"]).get("parts", []))
     for part in parts:
-        path = part.get("path", "").lower()
+        if not isinstance(part, dict):
+            continue
+        path = str(part.get("path") or "").lower()
         if not path.endswith("pipeline-content.json"):
             continue
         payload = part.get("payload", "")
@@ -104,7 +126,8 @@ def extract_connection_refs(definition: dict) -> list[dict[str, Any]]:
             doc = json.loads(text)
         except Exception:
             return []
-        activities = _flatten_activities(doc.get("properties", {}).get("activities", []))
+        properties = _as_dict(doc.get("properties", {}))
+        activities = _flatten_activities(properties.get("activities", []))
         refs: list[dict[str, Any]] = []
         for act in activities:
             refs.extend(_refs_from_activity(act))
@@ -112,20 +135,20 @@ def extract_connection_refs(definition: dict) -> list[dict[str, Any]]:
     return []
 
 
-def _flatten_activities(activities: Iterable[dict]) -> list[dict]:
+def _flatten_activities(activities: Iterable[dict] | dict | None) -> list[dict]:
     """Recursively unwrap ForEach/If/Until/Switch containers."""
     out: list[dict] = []
-    for act in activities or []:
+    for act in _as_list(activities):
         if not isinstance(act, dict):
             continue
         out.append(act)
-        tp = act.get("typeProperties") or {}
+        tp = _as_dict(act.get("typeProperties") or {})
         if act.get("type") in _NESTED_ACTIVITY_CONTAINERS:
             for nested_key in ("activities", "ifTrueActivities", "ifFalseActivities"):
                 nested = tp.get(nested_key) or []
                 out.extend(_flatten_activities(nested))
-            for case in tp.get("cases", []) or []:
-                out.extend(_flatten_activities(case.get("activities", []) or []))
+            for case in _as_list(tp.get("cases", []) or []):
+                out.extend(_flatten_activities(_as_dict(case).get("activities", []) or []))
             out.extend(_flatten_activities(tp.get("defaultActivities", []) or []))
     return out
 
@@ -133,7 +156,7 @@ def _flatten_activities(activities: Iterable[dict]) -> list[dict]:
 def _refs_from_activity(activity: dict) -> list[dict[str, Any]]:
     name = activity.get("name", "?")
     a_type = activity.get("type", "?")
-    tp = activity.get("typeProperties") or {}
+    tp = _as_dict(activity.get("typeProperties") or {})
     out: list[dict[str, Any]] = []
 
     # Copy activity: typeProperties.source / typeProperties.sink each
@@ -169,17 +192,16 @@ def _extract_refs(node: dict, activity_name: str, activity_type: str, role: str)
     # Modern Fabric shape: {"externalReferences": {"connection": "<guid>"}}
     ext = node.get("externalReferences")
     if isinstance(ext, dict):
-        conn_id = ext.get("connection") or conn_id
+        conn_id = _string_id(ext.get("connection")) or conn_id
 
     # Or: {"connectionReference": {"connectionId": "<guid>"}}
     cref = node.get("connectionReference")
     if isinstance(cref, dict):
-        conn_id = cref.get("connectionId") or conn_id
+        conn_id = _string_id(cref.get("connectionId")) or _string_id(cref) or conn_id
 
     # Direct fields at this level.
-    conn_id = node.get("connectionId") or conn_id
-    if not conn_id and isinstance(node.get("connection"), str):
-        conn_id = node.get("connection")
+    conn_id = _string_id(node.get("connectionId")) or conn_id
+    conn_id = _string_id(node.get("connection")) or conn_id
     # When the node IS the linkedService reference itself (common for
     # Script/Delete/StoredProcedure activities), 'referenceName' is a
     # direct child, not nested under a 'linkedService' key.
@@ -189,13 +211,14 @@ def _extract_refs(node: dict, activity_name: str, activity_type: str, role: str)
     # Legacy inline linked service — 'type' is the connector kind.
     ls = node.get("linkedServiceName") or node.get("linkedService")
     if isinstance(ls, dict):
-        tp = ls.get("properties", {}).get("typeProperties", {})
-        inline_type = ls.get("properties", {}).get("type") or inline_type
+        props = _as_dict(ls.get("properties", {}))
+        tp = _as_dict(props.get("typeProperties", {}))
+        inline_type = props.get("type") or inline_type
         # Sometimes the wrapper carries a 'referenceName' pointing at
         # another linked service; that's still a name, not an ID.
-        conn_id = conn_id or ls.get("referenceName")
+        conn_id = conn_id or _string_id(ls.get("referenceName"))
         # Older shape: connection ID hides in typeProperties.connectionId
-        conn_id = conn_id or tp.get("connectionId")
+        conn_id = conn_id or _string_id(tp.get("connectionId"))
 
     # If nothing surfaced, don't emit a phantom row.
     if not (conn_id or inline_type):
@@ -226,20 +249,19 @@ def refs_to_connector_calls(
     """
     calls: list[ConnectorCall] = []
     for ref in refs:
-        cid = ref.get("connection_id")
+        cid = _string_id(ref.get("connection_id"))
         inline = ref.get("inline_type")
 
         # Resolve connector kind
         connector_prefix, friendly = _resolve_connector(cid, inline, connections_by_id)
 
-        # Match against IMPACTED_CONNECTORS. The impacted catalog is keyed
-        # by M function name, so we do a fuzzy family match on the
-        # friendly name.
+        # Copy/Data Pipeline does not expose the Power Query
+        # Implementation option that this migration scanner classifies.
+        # We still return a
+        # ConnectorCall so include_non_migrating=True can prove the pipeline
+        # was inspected, but we deliberately do NOT bucket it as an
+        # Implementation="1.0" ODBC->ADBC migration impact.
         migration = MIGRATION_NONE
-        for rule in IMPACTED_CONNECTORS:
-            if rule["kind"].lower() in (friendly or "").lower() or rule["family"] in (connector_prefix or "").lower():
-                migration = rule["migration"]
-                break
 
         excerpt = f"{ref.get('activity_type')} activity '{ref.get('activity_name')}' (role={ref.get('role')})"
         if cid:

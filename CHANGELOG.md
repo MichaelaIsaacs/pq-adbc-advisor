@@ -3,6 +3,46 @@
 All notable changes to `pq-adbc-advisor` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.9] - 2026-10-14
+
+Customer-feedback bug bash hardening after broad community-blog usage.
+
+### Fixed
+
+- Hardened Data Pipeline parsing against Fabric definition shape drift:
+  object-valued `externalReferences.connection`, keyed activity maps, null
+  paths/payloads, and malformed reference nodes no longer surface as
+  `error: TypeError` skipped items.
+- Fixed tenant scans that said they scanned N workspaces but rendered an
+  empty report: `scan_tenant()` now records observed/skipped dataset,
+  dataflow, and unsupported artifact metadata so admins see whether the
+  result is genuinely clean, filtered to no migrating connectors, or missing
+  Scanner API expression metadata.
+- Added hybrid tenant-scan fallback for **Dataflows** and **Copy/Data
+  Pipeline** activities. `scan_tenant()` now starts with the Power BI
+  Scanner API, then supplements Dataflow and DataPipeline definitions via
+  Fabric REST because those surfaces expose different columns/payloads.
+  Copy/Data Pipeline is treated as coverage-only by default because Copy
+  does not expose the Power Query `Implementation` flag that this scanner
+  classifies.
+- Improved `scan_workspace()` current-workspace detection in Fabric notebooks
+  by preferring `notebookutils.runtime.context` / `mssparkutils.notebook`
+  before Spark config, avoiding accidental scans of an attached lakehouse
+  workspace.
+- Hardened definition parsing for malformed or sparse semantic-model and
+  dataflow payloads so one bad table / partition / part cannot poison the
+  whole workspace scan.
+- Hardened discovery expression handling so non-string expression payloads
+  are skipped locally instead of bubbling a worker exception into the
+  customer report.
+
+### Changed
+
+- Synced package metadata with runtime version (`0.3.9`) so `pip show`,
+  `pq_adbc_advisor.__version__`, telemetry, and report headers agree.
+- Updated README coverage text to reflect current Data Pipeline inspection
+  support.
+
 ## [0.3.1] - 2026-08-24
 
 UX follow-up addressing David Coe's review of v0.3.0 (Thu 2026-08-21). No

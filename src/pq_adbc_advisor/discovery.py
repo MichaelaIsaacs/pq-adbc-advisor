@@ -16,7 +16,7 @@ changes on top of v0.2.3's parallelism + LRO tuning:
    in the report so users see *why* their scan dropped N items instead
    of trusting an opaque count.
 4. **Scope disclosure.** The report tracks which item types were
-   inspected vs skipped (e.g. Data Pipeline is not yet inspected) and
+   inspected vs skipped (e.g. Report is not yet inspected) and
    surfaces that as a coverage score so customers don't take a clean
    report as a full-coverage guarantee.
 """
@@ -168,12 +168,29 @@ def _fetch_definition_and_scan(
         }
 
     calls: list[ConnectorCall] = []
+    malformed_expression_count = 0
     for e in expressions:
-        calls.extend(find_all_connectors(e["expression"]))
+        expr = e.get("expression") if isinstance(e, dict) else None
+        if not isinstance(expr, (str, list)):
+            malformed_expression_count += 1
+            continue
+        calls.extend(find_all_connectors(expr))
+
+    if malformed_expression_count and not calls:
+        return {
+            "item": item,
+            "calls": [],
+            "skip_reason": "malformed_expression_payload",
+            "source": source,
+            "pipeline_refs": None,
+            "malformed_expression_count": malformed_expression_count,
+        }
 
     return {
         "item": item, "calls": calls, "skip_reason": None,
-        "source": source, "pipeline_refs": None,
+        "source": source,
+        "pipeline_refs": None,
+        "malformed_expression_count": malformed_expression_count,
     }
 
 
@@ -395,6 +412,7 @@ def scan_tenant(
     workspace_ids: list[str] | None = None,
     include_fabric_connections: bool = True,
     include_non_migrating: bool = False,
+    include_fabric_item_fallback: bool = True,
     telemetry_enabled: bool = True,
     verbose: bool = True,
 ) -> ImpactReport:
@@ -404,6 +422,11 @@ def scan_tenant(
     Emits one row per connector call across the tenant.
 
     ``include_non_migrating`` behaves the same as in ``scan_workspace``.
+    ``include_fabric_item_fallback`` supplements Power BI Scanner API output
+    with Fabric item definitions for Dataflows and Data Pipelines. This is
+    necessary because tenant/workspace metadata is split across Power BI and
+    Fabric APIs, and Scanner API payloads may omit Dataflow expressions or
+    Copy/Data Pipeline JSON even when workspace enumeration succeeds.
     """
     started = time.time()
     access_token = access_token or fabric_api.get_token()
@@ -417,50 +440,231 @@ def scan_tenant(
 
     scan = fabric_api.scan_tenant_workspaces(access_token, workspace_ids)
     report = ImpactReport(workspace_id="(tenant)", scope="tenant")
+    report.scanned_workspace_count = len(workspace_ids or [])
+    report.used_fabric_item_fallback = include_fabric_item_fallback
+
+    observed_keys: set[tuple[str, str, str]] = set()
+    artifact_by_key: dict[tuple[str, str, str], ImpactedArtifact] = {}
+
+    def _item_key(ws_id: str, item_id: str, item_type: str) -> tuple[str, str, str]:
+        return (ws_id or "", item_id or "", item_type or "")
+
+    def _observe(item_type: str, ws_id: str = "", item_id: str = "") -> None:
+        key = _item_key(ws_id, item_id, item_type)
+        if item_id and key in observed_keys:
+            return
+        if item_id:
+            observed_keys.add(key)
+        report.observed_types[item_type] = report.observed_types.get(item_type, 0) + 1
+
+    def _scanner_id(obj: dict, *keys: str) -> str:
+        for key in keys:
+            value = obj.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return ""
+
+    def _remove_prior_skip(item_id: str, item_type: str) -> None:
+        if not item_id:
+            return
+        report.skipped = [
+            s for s in report.skipped
+            if not (s.get("item_id") == item_id and s.get("item_type") == item_type)
+        ]
+
+    def _add_or_skip(
+        *,
+        ws_id: str,
+        ws_name: str,
+        item: dict,
+        item_type: str,
+        calls: list[ConnectorCall],
+    ) -> None:
+        item_id = _scanner_id(item, "id", "objectId", "datasetId", "dataflowId")
+        item_name = _scanner_id(item, "name", "displayName") or item_id or item_type
+        if not calls:
+            if not any(
+                s.get("item_id") == item_id and s.get("item_type") == item_type
+                for s in report.skipped
+            ):
+                report.record_skipped(
+                    item_id, item_name, item_type,
+                    reason="definition_parsed_but_no_expressions",
+                )
+            return
+        if not include_non_migrating:
+            calls = [c for c in calls if c.is_migrating or c.custom_dsn]
+            if not calls:
+                if not any(
+                    s.get("item_id") == item_id and s.get("item_type") == item_type
+                    for s in report.skipped
+                ):
+                    report.record_skipped(
+                        item_id, item_name, item_type, reason="no_migrating_connectors",
+                    )
+                return
+        _remove_prior_skip(item_id, item_type)
+        key = _item_key(ws_id, item_id, item_type)
+        existing = artifact_by_key.get(key)
+        if existing is not None:
+            seen_calls = {
+                    (c.connector_kind, c.m_function, c.migration, c.implementation, c.endpoint_hint, c.excerpt)
+                    for c in existing.hits
+            }
+            for call in calls:
+                    sig = (
+                        call.connector_kind, call.m_function, call.migration,
+                        call.implementation, call.endpoint_hint, call.excerpt,
+                    )
+                    if sig not in seen_calls:
+                        existing.hits.append(call)
+            return
+        artifact = ImpactedArtifact(
+            workspace_id=ws_id, workspace_name=ws_name,
+            item_id=item_id, item_name=item_name,
+            item_type=item_type, has_gateway=None, hits=calls,
+        )
+        artifact_by_key[key] = artifact
+        report.add(artifact)
 
     for ws in scan.get("workspaces", []):
         ws_id = ws.get("id", "")
         ws_name = ws.get("name", "")
         for dataset in ws.get("datasets", []):
+            if not isinstance(dataset, dict):
+                continue
+            _observe("SemanticModel", ws_id, _scanner_id(dataset, "id", "objectId", "datasetId"))
             calls: list[ConnectorCall] = []
             for e in definitions.expressions_from_scanner_dataset(dataset):
-                calls.extend(find_all_connectors(e["expression"]))
-            if not calls:
-                continue
-            if not include_non_migrating:
-                calls = [c for c in calls if c.is_migrating or c.custom_dsn]
-                if not calls:
-                    continue
-            report.add(
-                ImpactedArtifact(
-                    workspace_id=ws_id, workspace_name=ws_name,
-                    item_id=dataset.get("id", ""), item_name=dataset.get("name", ""),
-                    item_type="SemanticModel", has_gateway=None, hits=calls,
-                )
+                expr = e.get("expression") if isinstance(e, dict) else None
+                if isinstance(expr, (str, list)):
+                    calls.extend(find_all_connectors(expr))
+            _add_or_skip(
+                ws_id=ws_id, ws_name=ws_name, item=dataset,
+                item_type="SemanticModel", calls=calls,
             )
         for df in ws.get("dataflows", []):
+            if not isinstance(df, dict):
+                continue
+            _observe("Dataflow", ws_id, _scanner_id(df, "id", "objectId", "dataflowId"))
             calls = []
             for e in definitions.expressions_from_scanner_dataflow(df):
-                calls.extend(find_all_connectors(e["expression"]))
-            if not calls:
-                continue
-            if not include_non_migrating:
-                calls = [c for c in calls if c.is_migrating or c.custom_dsn]
-                if not calls:
-                    continue
-            report.add(
-                ImpactedArtifact(
-                    workspace_id=ws_id, workspace_name=ws_name,
-                    item_id=df.get("objectId", df.get("id", "")),
-                    item_name=df.get("name", ""),
-                    item_type="Dataflow", has_gateway=None, hits=calls,
-                )
+                expr = e.get("expression") if isinstance(e, dict) else None
+                if isinstance(expr, (str, list)):
+                    calls.extend(find_all_connectors(expr))
+            _add_or_skip(
+                ws_id=ws_id, ws_name=ws_name, item=df,
+                item_type="Dataflow", calls=calls,
             )
 
+        for collection, item_type in (
+            ("reports", "Report"),
+            ("dashboards", "Dashboard"),
+            ("notebooks", "Notebook"),
+            ("lakehouses", "Lakehouse"),
+            ("warehouses", "Warehouse"),
+            ("datamarts", "Datamart"),
+        ):
+            for item in ws.get(collection, []) or []:
+                if not isinstance(item, dict):
+                    continue
+                _observe(item_type, ws_id, _scanner_id(item, "id", "objectId"))
+                report.record_skipped(
+                    _scanner_id(item, "id", "objectId"),
+                    _scanner_id(item, "name", "displayName") or item_type,
+                    item_type,
+                    reason="type_not_inspected",
+                )
+
+    connections_by_id: dict[str, dict] = {}
     if include_fabric_connections:
         connections, err = fabric_api.list_fabric_connections(access_token)
         report.fabric_connections = connections
         report.fabric_connections_error = err
+        for c in connections or []:
+            cid = c.get("id") if isinstance(c, dict) else None
+            if cid:
+                connections_by_id[cid] = c
+
+    if include_fabric_item_fallback:
+        _log_progress(
+            "supplementing tenant scan with Fabric Dataflow/Data Pipeline definitions...",
+            verbose,
+        )
+
+        def _process_fabric_item(ws_id: str, ws_name: str, item: dict) -> None:
+            item_type = item.get("type", "")
+            item_id = item.get("id", "")
+            _observe(item_type, ws_id, item_id)
+            try:
+                res = _fetch_definition_and_scan(
+                    ws_id, access_token, item, use_sempy=False,
+                )
+            except PermissionError:
+                report.record_skipped(item_id, item.get("displayName", ""), item_type, "permission_denied")
+                return
+            except FileNotFoundError:
+                report.record_skipped(item_id, item.get("displayName", ""), item_type, "deleted_during_scan")
+                return
+            except Exception as e:
+                report.record_skipped(item_id, item.get("displayName", ""), item_type, f"error: {type(e).__name__}")
+                return
+
+            if res["skip_reason"] is not None:
+                if not any(
+                    s.get("item_id") == item_id and s.get("item_type") == item_type
+                    for s in report.skipped
+                ):
+                    report.record_skipped(
+                        item_id, item.get("displayName", ""), item_type, res["skip_reason"]
+                    )
+                return
+
+            if res.get("pipeline_refs"):
+                calls = pipeline_scan.refs_to_connector_calls(
+                    res["pipeline_refs"], connections_by_id,
+                )
+                report.pipeline_calls += len(calls)
+            else:
+                calls = res["calls"]
+
+            _add_or_skip(
+                ws_id=ws_id,
+                ws_name=ws_name,
+                item=item,
+                item_type=item_type,
+                calls=calls,
+            )
+
+        for ws_id in workspace_ids or []:
+            if not ws_id:
+                continue
+            try:
+                fabric_items: list[dict] = []
+                fabric_items.extend(fabric_api.list_items(ws_id, access_token, item_type="Dataflow"))
+                fabric_items.extend(fabric_api.list_items(ws_id, access_token, item_type="DataPipeline"))
+            except Exception:
+                report.record_skipped(
+                    ws_id,
+                    f"Workspace {ws_id}",
+                    "Workspace",
+                    "fabric_items_unavailable",
+                )
+                continue
+
+            ws_name = ""
+            for item in fabric_items:
+                if isinstance(item, dict) and item.get("type") in ("Dataflow", "DataPipeline"):
+                    _process_fabric_item(ws_id, ws_name, item)
+
+    if not report.artifacts and not report.skipped:
+        report.observed_types["Workspace"] = len(workspace_ids or [])
+        report.record_skipped(
+            "(tenant)",
+            f"{len(workspace_ids or [])} workspace(s)",
+            "Tenant",
+            reason="scanner_returned_no_supported_artifacts",
+        )
 
     duration = time.time() - started
     _log_progress(f"tenant scan complete in {duration:.0f}s.", verbose)
