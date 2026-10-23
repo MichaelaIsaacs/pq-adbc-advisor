@@ -1,30 +1,25 @@
 {
-  "generated_at": "2026-10-19T18:02:00Z",
+  "generated_at": "2026-10-23T18:01:11Z",
   "repo": "MichaelaIsaacs/pq-adbc-advisor",
   "reach": {
-    "scans": 1578,
-    "workspaces": 400,
+    "scans": 1607,
+    "workspaces": 406,
     "tenants": 1
   },
   "resolution": {
-    "resolved_pinned": 6,
+    "resolved_pinned": -2,
     "resolved_high": 1,
-    "resolved_medium": -14,
-    "resolved_custom_dsn": -67,
-    "return_scans": 174
+    "resolved_medium": -28,
+    "resolved_custom_dsn": -265,
+    "return_scans": 184
   },
   "value": {
-    "hours_saved": 9450.75,
-    "inspected": 189015,
-    "median_coverage": 38,
-    "sempy_used_pct": 81.62230671736376
+    "hours_saved": 13819.449999999999,
+    "inspected": 276389,
+    "median_coverage": 39,
+    "sempy_used_pct": 81.02053515868077
   },
   "trend": [
-    {
-      "timestamp": "2026-08-20T00:00:00Z",
-      "scans": 1,
-      "workspaces": 1
-    },
     {
       "timestamp": "2026-08-24T00:00:00Z",
       "scans": 2,
@@ -214,13 +209,33 @@
       "timestamp": "2026-10-19T00:00:00Z",
       "scans": 180,
       "workspaces": 157
+    },
+    {
+      "timestamp": "2026-10-20T00:00:00Z",
+      "scans": 1,
+      "workspaces": 1
+    },
+    {
+      "timestamp": "2026-10-21T00:00:00Z",
+      "scans": 9,
+      "workspaces": 4
+    },
+    {
+      "timestamp": "2026-10-22T00:00:00Z",
+      "scans": 7,
+      "workspaces": 4
+    },
+    {
+      "timestamp": "2026-10-23T00:00:00Z",
+      "scans": 12,
+      "workspaces": 3
     }
   ],
   "versions": [
     {
       "version": "0.3.8",
-      "scans": 1535,
-      "workspaces": 384
+      "scans": 1564,
+      "workspaces": 390
     },
     {
       "version": "0.3.7",
@@ -271,52 +286,8 @@
       "version": "0.3.5"
     },
     {
-      "workspace": "f6de6b59-c325-400a-9934-5ec7153eab2a",
-      "timestamp": "2026-09-23T14:28:55Z",
-      "is_first": "False",
-      "run_count": 4,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 45,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "3c786512-9a8b-4936-88e7-f2e418d01b41",
-      "timestamp": "2026-09-22T14:09:02Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 47,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "9a547595-537b-49be-a67a-6befa7ff67af",
-      "timestamp": "2026-09-22T14:38:08Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 46,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "1382c728-00f2-4946-a4b0-e880da4784bb",
-      "timestamp": "2026-09-22T14:54:51Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 21,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "1379fb17-d24e-4c18-97d8-24b9b2ca24df",
-      "timestamp": "2026-09-15T20:03:11Z",
+      "workspace": "d2531d29-a9fa-4af9-8497-37bb58a095cf",
+      "timestamp": "2026-10-19T12:00:01Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
@@ -326,393 +297,19 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "ab516e73-ed8c-4f5c-ae6c-d427ee43f0f7",
-      "timestamp": "2026-09-22T15:07:38Z",
+      "workspace": "d4f6eff2-6fe3-4f4c-adeb-00bb56bd8d98",
+      "timestamp": "2026-10-07T08:55:56Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 44,
+      "coverage": 37,
       "version": "0.3.8"
     },
     {
-      "workspace": "8a84d2a5-6f33-40a5-be3d-e138ae49ffa8",
-      "timestamp": "2026-09-16T07:29:21Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 46,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "c05b27fc-6df6-421d-ab61-08e9adad59e1",
-      "timestamp": "2026-09-22T15:46:01Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 46,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "96750c25-5721-49db-b55a-4b51504b6d20",
-      "timestamp": "2026-09-15T23:37:56Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 30,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "c1bc2721-a19f-41da-9219-a8ee3590cc4d",
-      "timestamp": "2026-09-16T09:06:50Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 36,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "7e496b41-224e-4b7c-a681-47d99c17f473",
-      "timestamp": "2026-09-16T04:58:20Z",
-      "is_first": "False",
-      "run_count": 2,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 0,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "625c4ad9-5d69-4b93-9578-45e0667ec6e4",
-      "timestamp": "2026-09-16T07:23:04Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 0,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "f74d2aa5-c026-40a0-ae8e-5773c6cbf421",
-      "timestamp": "2026-09-15T20:48:23Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 42,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "89c92af2-9c9a-4797-81fc-69d598e08f4e",
-      "timestamp": "2026-09-21T09:36:49Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 33,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "6d13751f-aa03-4767-886b-0b7279795073",
-      "timestamp": "2026-09-28T08:22:24Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 12,
-      "current_pinned": 12,
-      "resolved_pinned": 0,
-      "coverage": 43,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "10bcbf38-e726-4ef2-9ec2-38b18b05ed48",
-      "timestamp": "2026-09-21T13:34:40Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 47,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "0ca8b891-446e-400c-a35b-c538bea8d517",
-      "timestamp": "2026-09-15T13:22:15Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 46,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "a8a1d7df-fb8a-4ab3-a8b6-594d84a385b3",
-      "timestamp": "2026-09-21T13:42:16Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 21,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "c41b9c0e-ab1e-4c83-9e1a-3f93e300bd10",
-      "timestamp": "2026-09-16T08:40:48Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 53,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "f878e1c6-9b14-4aac-bb51-179fe33918db",
-      "timestamp": "2026-09-21T15:05:15Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 0,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "3187f4d4-d02c-4079-ae81-f40fadd41e3a",
-      "timestamp": "2026-10-14T15:37:49Z",
-      "is_first": "False",
-      "run_count": 8,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 25,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "4e5f3107-bec7-4172-9c65-94c0344e4d8d",
-      "timestamp": "2026-09-21T16:17:46Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 18,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "eeffb66f-5285-4407-916a-08f8adda988a",
-      "timestamp": "2026-09-22T13:50:44Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 29,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "11bb8eda-8407-4bd7-ad6e-9565b03f5172",
-      "timestamp": "2026-09-21T18:43:31Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 50,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "(tenant)",
-      "timestamp": "2026-10-19T17:13:44Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 100,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "07cbbea4-c828-4ad9-96b9-006494f7245b",
-      "timestamp": "2026-09-24T01:11:46Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 27,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "dc3906ff-acff-4de3-9f0d-421686d74d97",
-      "timestamp": "2026-09-16T10:17:38Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 23,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "d2b6d5d6-5071-421d-9cfe-884b5ed9739d",
-      "timestamp": "2026-09-24T10:21:50Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 43,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "1cfa126c-6ca0-4535-818f-6f7dc7877014",
-      "timestamp": "2026-09-24T12:10:55Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 6,
-      "current_pinned": 6,
-      "resolved_pinned": 0,
-      "coverage": 15,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "f7a20769-825a-486e-bf9f-2b76a8e81b6e",
-      "timestamp": "2026-09-24T13:43:16Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 15,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "7ccc5b28-6d94-48e7-9f51-32534d43a284",
-      "timestamp": "2026-09-24T13:46:05Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 17,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "b79fd702-8203-47c4-8064-0a0a424aa1f9",
-      "timestamp": "2026-09-24T14:26:10Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 70,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "8b2bf5f7-8159-403f-9fab-4ccdda449467",
-      "timestamp": "2026-09-24T14:36:07Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 70,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "d890dc12-dde2-4a9e-a3e7-e2cf351ed1f4",
-      "timestamp": "2026-10-12T16:02:52Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 29,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "cca0129e-173c-4074-b60e-982c57e85381",
-      "timestamp": "2026-10-13T16:29:08Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 12,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "v036-smoke-ws",
-      "timestamp": "2026-08-31T20:28:35Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 1,
-      "current_pinned": 1,
-      "resolved_pinned": 0,
-      "coverage": 100,
-      "version": "0.3.6"
-    },
-    {
-      "workspace": "v036-bugbashed-ws",
-      "timestamp": "2026-08-31T20:32:54Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 1,
-      "current_pinned": 1,
-      "resolved_pinned": 0,
-      "coverage": 100,
-      "version": "0.3.6"
-    },
-    {
-      "workspace": "d5cdf33c-d87f-45e0-be0c-facfa4ed0bdf",
-      "timestamp": "2026-09-30T04:37:18Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 35,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "9621f6f3-82f9-45f9-93cc-8f8d6d040e91",
-      "timestamp": "2026-09-21T13:55:55Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 52,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "c8b1f1e9-14f7-44fe-a64d-97f54c4c616d",
-      "timestamp": "2026-10-01T06:59:12Z",
-      "is_first": "False",
-      "run_count": 3,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 10,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "825c98aa-82f4-4322-a224-19a9bafd18ba",
-      "timestamp": "2026-10-01T07:07:43Z",
+      "workspace": "efaca650-d188-4b4b-81a2-9371c80053a5",
+      "timestamp": "2026-09-18T19:28:35Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
@@ -722,597 +319,25 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "eec5b19d-b5b3-4dc4-9d7d-140806d15fa4",
-      "timestamp": "2026-09-30T09:13:46Z",
-      "is_first": "False",
-      "run_count": 2,
-      "first_pinned": 9,
-      "current_pinned": 9,
+      "workspace": "5290d6a0-c9dd-4c42-b209-d39dc04098f6",
+      "timestamp": "2026-10-09T16:03:05Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
       "resolved_pinned": 0,
       "coverage": 54,
       "version": "0.3.8"
     },
     {
-      "workspace": "ff0480e5-6cb3-4108-a1f9-2ab9efd584b2",
-      "timestamp": "2026-09-30T11:24:30Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 46,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "ee4875fa-8772-424c-a290-4fa5894aa638",
-      "timestamp": "2026-10-08T09:22:01Z",
-      "is_first": "False",
-      "run_count": 4,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 29,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "e5c90303-53cb-40cd-94bd-cf4c233282e9",
-      "timestamp": "2026-09-30T16:23:23Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 5,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "94a1fbf9-1bcd-4112-96ea-ee7a5469c2e7",
-      "timestamp": "2026-09-30T16:30:40Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 61,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "420e6e99-2907-41a7-b858-db0fbc8ba65e",
-      "timestamp": "2026-09-30T16:42:40Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 50,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "777689cb-8e52-4fd3-837f-3db980b16d6e",
-      "timestamp": "2026-10-01T16:58:29Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 46,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "e90795d9-54bd-449f-aeb9-4305e38f95ca",
-      "timestamp": "2026-10-02T12:18:58Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 50,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "0daeb94a-005e-409a-8af8-050233e94e44",
-      "timestamp": "2026-09-12T15:23:49Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 49,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "3f2538ff-472c-4546-86cd-305c3bb055cd",
-      "timestamp": "2026-10-19T11:22:35Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 49,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "97ac3813-71e2-4faf-acff-36d7b8dd7100",
-      "timestamp": "2026-09-08T15:12:34Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 44,
-      "version": "0.3.6"
-    },
-    {
-      "workspace": "ed05c93e-0dd8-4f46-8eac-4a9bdb5b8001",
-      "timestamp": "2026-09-25T19:52:50Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 26,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "addd17eb-82cb-49e9-86c3-6161e6cc682f",
-      "timestamp": "2026-10-05T06:01:41Z",
+      "workspace": "168e49eb-11f6-4a93-bed6-317184e0ee1b",
+      "timestamp": "2026-10-09T16:24:12Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
       "coverage": 48,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "4ed1980b-7f9c-40e0-be54-a290eee1ce9e",
-      "timestamp": "2026-09-24T09:24:57Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 43,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "51cdc401-f920-48c6-a74c-cf4aaacf6a67",
-      "timestamp": "2026-09-17T14:34:28Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 0,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "3b221c99-8443-4e05-9913-14326179e95e",
-      "timestamp": "2026-09-17T15:58:19Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 16,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "7973d2c1-b766-4879-854c-2d031ae4a53d",
-      "timestamp": "2026-09-17T16:11:29Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 11,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "371e5565-1ba9-47f1-98fd-030ff7dce642",
-      "timestamp": "2026-09-17T16:11:33Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 17,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "8eec9272-a884-41dd-991f-d5a07c78bcf6",
-      "timestamp": "2026-09-17T16:32:11Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 14,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "f978efe8-abd3-4c20-a167-5d5945672e5a",
-      "timestamp": "2026-09-17T19:47:40Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 31,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "fc3ba33d-757a-49fe-9867-b2ca1220f627",
-      "timestamp": "2026-09-18T12:22:43Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 31,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "a38804f1-becb-4707-ac00-aa9a589075fd",
-      "timestamp": "2026-09-18T12:31:04Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 30,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "165c6fae-13fa-4716-b4e0-046301c89c2f",
-      "timestamp": "2026-10-13T09:54:15Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 0,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "93895c0c-eecc-40e2-a868-c141b27658a3",
-      "timestamp": "2026-10-14T06:14:52Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 1,
-      "current_pinned": 1,
-      "resolved_pinned": 0,
-      "coverage": 28,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "01d84306-9742-49fa-96f8-69a6c5d8fa1d",
-      "timestamp": "2026-10-13T04:59:27Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 45,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "0c598d0e-8479-46a0-b20c-1bd99ce3a323",
-      "timestamp": "2026-10-13T06:49:56Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 40,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "a38b84c9-12b6-45d1-8db7-80594415c2d5",
-      "timestamp": "2026-10-13T14:58:11Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 13,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "66f667b6-bfee-4596-a5dc-7bb1151606dd",
-      "timestamp": "2026-09-21T13:22:05Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 38,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "01ee3ee7-fd0f-4006-a632-d18cd5551d2e",
-      "timestamp": "2026-10-19T11:59:32Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 21,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "5e7c9c95-5d2d-4593-99da-395f6a5b6b11",
-      "timestamp": "2026-09-09T06:25:35Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 43,
-      "version": "0.3.7"
-    },
-    {
-      "workspace": "a09c94da-ddcf-4cf7-ba24-8c11cfb4d67b",
-      "timestamp": "2026-09-09T08:56:35Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 20,
-      "version": "0.3.7"
-    },
-    {
-      "workspace": "be46bbda-383c-43b7-b6c7-d0116e53f515",
-      "timestamp": "2026-09-09T10:29:59Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 28,
-      "version": "0.3.7"
-    },
-    {
-      "workspace": "aae52270-cd49-46da-bb44-bb1e99510149",
-      "timestamp": "2026-09-09T13:17:13Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 0,
-      "version": "0.3.7"
-    },
-    {
-      "workspace": "bc901c0a-5bcf-4f65-a614-98f09b5f88cb",
-      "timestamp": "2026-09-10T09:40:00Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 29,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "b058a43c-1021-46e8-9f5e-8ebb8cddf2d2",
-      "timestamp": "2026-10-13T17:27:54Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 43,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "653fcb7d-00e9-477e-a8da-81f18a519132",
-      "timestamp": "2026-10-14T12:50:57Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 34,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "1bb8f150-81c7-401e-9e14-6135f1423097",
-      "timestamp": "2026-10-14T15:34:49Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 28,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "cded0d73-368e-4c17-b362-94df3ea8a80e",
-      "timestamp": "2026-10-14T15:42:48Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 50,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "fb501267-b977-4808-93b6-3f51c6024760",
-      "timestamp": "2026-10-15T10:51:36Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 19,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "298c96b4-8a43-479d-b8f4-9dc44019e3b6",
-      "timestamp": "2026-10-14T18:13:21Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 73,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "bfecb464-9d07-43a1-b2de-f95a84cdf0ab",
-      "timestamp": "2026-10-14T18:25:36Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 48,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "ffb7d962-0015-4c99-b22c-b1770d15684a",
-      "timestamp": "2026-09-22T19:43:14Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 0,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "71fa7865-528d-4622-8774-9e19c5995368",
-      "timestamp": "2026-09-22T20:04:11Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 100,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "40e7e3db-dfeb-4bf1-9fe6-027272df7079",
-      "timestamp": "2026-09-22T20:25:26Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 100,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "1b69ee99-9e55-411c-a289-a04f4f067615",
-      "timestamp": "2026-09-22T20:46:57Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 100,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "46422190-2855-469a-9360-d0558a2ec3ff",
-      "timestamp": "2026-09-22T20:56:27Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 100,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "0c1fa17b-d774-4d4c-96f9-343c7292a43d",
-      "timestamp": "2026-09-23T08:26:21Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 2,
-      "current_pinned": 2,
-      "resolved_pinned": 0,
-      "coverage": 48,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "f0d4d192-46b0-4a2a-bf9d-e46c74da1af9",
-      "timestamp": "2026-09-23T13:14:54Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 45,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "cfe4fb2c-40ef-46c3-9761-3dd50b74d6f5",
-      "timestamp": "2026-09-23T16:52:04Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 24,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "8f6258b1-1a9d-4e1f-af30-3f99630ec334",
-      "timestamp": "2026-10-01T06:34:10Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 10,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "2c03e1a7-eedf-4b11-8481-a30ea277c216",
-      "timestamp": "2026-10-01T08:08:06Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 38,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "da5f82f9-48c2-4ee6-8e0b-9e28f2958754",
-      "timestamp": "2026-10-01T12:06:59Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 21,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "33be09e5-e022-4311-9749-e784a1d14875",
-      "timestamp": "2026-09-02T20:19:33Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 60,
-      "version": "0.3.6"
-    },
-    {
-      "workspace": "835e0821-c9d2-48ca-a499-14ab8b7a074a",
-      "timestamp": "2026-10-16T07:22:08Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 28,
       "version": "0.3.8"
     },
     {
@@ -1338,26 +363,26 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "b7b4e539-897d-4ea1-9e2d-3e8a2170435a",
-      "timestamp": "2026-10-19T11:22:29Z",
+      "workspace": "2ccaffe2-9551-4725-ad69-5e471a237e74",
+      "timestamp": "2026-10-09T16:43:04Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 50,
+      "coverage": 52,
       "version": "0.3.8"
     },
     {
-      "workspace": "3ff7e576-fcf8-4b07-9c7a-00dd924afb20",
-      "timestamp": "2026-10-19T11:22:30Z",
+      "workspace": "72a01254-ff0e-446e-9bb8-7dcb9105ddbf",
+      "timestamp": "2026-09-07T14:46:25Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 24,
-      "version": "0.3.8"
+      "coverage": 62,
+      "version": "0.3.6"
     },
     {
       "workspace": "ce77a582-548d-4374-9958-f820c6bdb3df",
@@ -1368,6 +393,17 @@
       "current_pinned": 0,
       "resolved_pinned": 0,
       "coverage": 19,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "835e0821-c9d2-48ca-a499-14ab8b7a074a",
+      "timestamp": "2026-10-16T07:22:08Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 28,
       "version": "0.3.8"
     },
     {
@@ -1426,25 +462,25 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "8d3f9d25-cdc1-4df9-8ba5-c9407664f452",
-      "timestamp": "2026-10-19T11:30:41Z",
-      "is_first": "True",
-      "run_count": 1,
+      "workspace": "(tenant)",
+      "timestamp": "2026-10-23T18:00:47Z",
+      "is_first": "False",
+      "run_count": 3,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 30,
+      "coverage": 100,
       "version": "0.3.8"
     },
     {
-      "workspace": "fbc869d0-6198-4880-a081-c289e3c28c56",
-      "timestamp": "2026-10-19T11:35:44Z",
+      "workspace": "3ff7e576-fcf8-4b07-9c7a-00dd924afb20",
+      "timestamp": "2026-10-19T11:22:30Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 36,
+      "coverage": 24,
       "version": "0.3.8"
     },
     {
@@ -1492,14 +528,14 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "18df4365-67f4-40e1-a98f-7c2c9e04f3d2",
-      "timestamp": "2026-10-19T11:39:32Z",
+      "workspace": "3f2538ff-472c-4546-86cd-305c3bb055cd",
+      "timestamp": "2026-10-19T11:22:35Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 50,
+      "coverage": 49,
       "version": "0.3.8"
     },
     {
@@ -1613,25 +649,25 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "6515c759-df57-4719-a857-104b899a1a50",
-      "timestamp": "2026-10-19T11:50:19Z",
+      "workspace": "b7b4e539-897d-4ea1-9e2d-3e8a2170435a",
+      "timestamp": "2026-10-19T11:22:29Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 36,
+      "coverage": 50,
       "version": "0.3.8"
     },
     {
-      "workspace": "953be14f-cef3-47e8-b7bc-346ec43f44c8",
-      "timestamp": "2026-10-19T11:50:24Z",
+      "workspace": "f30133d0-dcef-4758-9e49-ebe653bdb052",
+      "timestamp": "2026-10-06T19:15:57Z",
       "is_first": "True",
       "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
+      "first_pinned": 1,
+      "current_pinned": 1,
       "resolved_pinned": 0,
-      "coverage": 25,
+      "coverage": 39,
       "version": "0.3.8"
     },
     {
@@ -1646,8 +682,8 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "4cef97de-9a11-441c-a026-d7abc7f4d83c",
-      "timestamp": "2026-10-19T11:51:34Z",
+      "workspace": "fbc869d0-6198-4880-a081-c289e3c28c56",
+      "timestamp": "2026-10-19T11:35:44Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
@@ -1745,14 +781,14 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "de54658e-254e-4f8a-b70b-9f352812d8a9",
-      "timestamp": "2026-10-19T11:58:19Z",
+      "workspace": "18df4365-67f4-40e1-a98f-7c2c9e04f3d2",
+      "timestamp": "2026-10-19T11:39:32Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 30,
+      "coverage": 50,
       "version": "0.3.8"
     },
     {
@@ -1767,47 +803,47 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "938674b8-6589-4f93-a710-62cd960c72ae",
-      "timestamp": "2026-10-13T16:17:29Z",
-      "is_first": "False",
-      "run_count": 3,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 20,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "e4345e7d-9619-4b6d-8dce-0269f4a57bac",
-      "timestamp": "2026-09-24T15:45:17Z",
+      "workspace": "d23ff2ec-f6f4-49c3-8044-c6b1cb24fd96",
+      "timestamp": "2026-10-19T12:01:12Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 18,
+      "coverage": 33,
       "version": "0.3.8"
     },
     {
-      "workspace": "65dc4cf1-29b5-41c8-ad78-1031a494c9e3",
-      "timestamp": "2026-10-08T10:51:42Z",
+      "workspace": "67512223-4e45-4377-8444-d0f333b144fe",
+      "timestamp": "2026-10-19T11:58:26Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 46,
+      "coverage": 19,
       "version": "0.3.8"
     },
     {
-      "workspace": "d2531d29-a9fa-4af9-8497-37bb58a095cf",
-      "timestamp": "2026-10-19T12:00:01Z",
+      "workspace": "01ee3ee7-fd0f-4006-a632-d18cd5551d2e",
+      "timestamp": "2026-10-19T11:59:32Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 42,
+      "coverage": 21,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "741b3542-4b8f-40c8-8176-6b15ba001455",
+      "timestamp": "2026-10-19T12:51:57Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 25,
       "version": "0.3.8"
     },
     {
@@ -1987,36 +1023,36 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "462fda33-7add-4ca9-b55b-775f4c99d3b4",
-      "timestamp": "2026-10-19T12:05:37Z",
+      "workspace": "6515c759-df57-4719-a857-104b899a1a50",
+      "timestamp": "2026-10-19T11:50:19Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 25,
+      "coverage": 36,
       "version": "0.3.8"
     },
     {
-      "workspace": "8dcb5f2a-4195-49df-ac6a-5033d2f94be3",
-      "timestamp": "2026-10-19T12:18:01Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 31,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "4c87a5c4-8f31-407d-a1e1-85fb87414e40",
-      "timestamp": "2026-10-19T12:09:55Z",
+      "workspace": "8d3f9d25-cdc1-4df9-8ba5-c9407664f452",
+      "timestamp": "2026-10-19T11:30:41Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
       "coverage": 30,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "af707fb0-c49e-4547-be7a-aa5e3aa40337",
+      "timestamp": "2026-10-07T12:43:44Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 13,
       "version": "0.3.8"
     },
     {
@@ -2053,14 +1089,14 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "ae58b1ce-6f9c-4b97-bf51-bf9fb92efd2e",
-      "timestamp": "2026-10-19T12:46:19Z",
+      "workspace": "4cef97de-9a11-441c-a026-d7abc7f4d83c",
+      "timestamp": "2026-10-19T11:51:34Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 37,
+      "coverage": 36,
       "version": "0.3.8"
     },
     {
@@ -2251,14 +1287,14 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "b7c88d6f-3240-4d6b-b1ba-a0c12fa58fd7",
-      "timestamp": "2026-10-19T12:51:13Z",
+      "workspace": "de54658e-254e-4f8a-b70b-9f352812d8a9",
+      "timestamp": "2026-10-19T11:58:19Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 35,
+      "coverage": 30,
       "version": "0.3.8"
     },
     {
@@ -2347,17 +1383,6 @@
       "current_pinned": 0,
       "resolved_pinned": 0,
       "coverage": 33,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "741b3542-4b8f-40c8-8176-6b15ba001455",
-      "timestamp": "2026-10-19T12:51:57Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 25,
       "version": "0.3.8"
     },
     {
@@ -2746,14 +1771,14 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "b6751df7-358d-4cdb-ae21-a6d0a7b5a4ab",
-      "timestamp": "2026-10-19T12:59:36Z",
+      "workspace": "462fda33-7add-4ca9-b55b-775f4c99d3b4",
+      "timestamp": "2026-10-19T12:05:37Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 50,
+      "coverage": 25,
       "version": "0.3.8"
     },
     {
@@ -2768,36 +1793,36 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "578ef72a-8e4a-4e3a-afb1-cb908904b03e",
-      "timestamp": "2026-10-19T12:59:42Z",
+      "workspace": "8dcb5f2a-4195-49df-ac6a-5033d2f94be3",
+      "timestamp": "2026-10-19T12:18:01Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 18,
+      "coverage": 31,
       "version": "0.3.8"
     },
     {
-      "workspace": "95a8c66a-f1ca-469d-9d8c-725b2f0f0ba7",
-      "timestamp": "2026-10-19T12:59:44Z",
+      "workspace": "4c87a5c4-8f31-407d-a1e1-85fb87414e40",
+      "timestamp": "2026-10-19T12:09:55Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 92,
+      "coverage": 30,
       "version": "0.3.8"
     },
     {
-      "workspace": "ac3175fc-2386-483f-a33e-98e177f74479",
-      "timestamp": "2026-10-19T12:59:48Z",
+      "workspace": "953be14f-cef3-47e8-b7bc-346ec43f44c8",
+      "timestamp": "2026-10-19T11:50:24Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 50,
+      "coverage": 25,
       "version": "0.3.8"
     },
     {
@@ -2878,14 +1903,14 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "875fdc3f-b2f3-4156-b12b-440088049ff6",
-      "timestamp": "2026-10-19T13:05:41Z",
+      "workspace": "ae58b1ce-6f9c-4b97-bf51-bf9fb92efd2e",
+      "timestamp": "2026-10-19T12:46:19Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 30,
+      "coverage": 37,
       "version": "0.3.8"
     },
     {
@@ -2977,41 +2002,63 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "2c049a78-3ce4-46e5-8dd3-9f89bcd10a11",
-      "timestamp": "2026-10-06T15:05:35Z",
+      "workspace": "8034a044-d3f0-4082-8e85-91a047ff512c",
+      "timestamp": "2026-10-07T15:32:25Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 2,
+      "current_pinned": 2,
+      "resolved_pinned": 0,
+      "coverage": 59,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "1b70dff6-49f2-47fd-af64-0111689b74c5",
+      "timestamp": "2026-10-08T09:01:59Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 0,
+      "coverage": 21,
       "version": "0.3.8"
     },
     {
-      "workspace": "14d1e9fd-deb6-4746-80cc-8d069afc3d9f",
-      "timestamp": "2026-10-06T17:40:23Z",
+      "workspace": "ee4875fa-8772-424c-a290-4fa5894aa638",
+      "timestamp": "2026-10-08T09:22:01Z",
+      "is_first": "False",
+      "run_count": 4,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 29,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "65dc4cf1-29b5-41c8-ad78-1031a494c9e3",
+      "timestamp": "2026-10-08T10:51:42Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 17,
+      "coverage": 46,
       "version": "0.3.8"
     },
     {
-      "workspace": "ab2279cc-aaba-41d1-a55b-84125dee7f75",
-      "timestamp": "2026-10-06T17:53:56Z",
+      "workspace": "88f95699-b587-4800-9d41-a65151eeddd4",
+      "timestamp": "2026-10-08T11:04:19Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 49,
+      "coverage": 50,
       "version": "0.3.8"
     },
     {
-      "workspace": "6eeac6cd-14d5-4855-b54c-e4f2b080e84c",
-      "timestamp": "2026-10-06T18:00:49Z",
+      "workspace": "01d84306-9742-49fa-96f8-69a6c5d8fa1d",
+      "timestamp": "2026-10-13T04:59:27Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
@@ -3019,94 +2066,6 @@
       "resolved_pinned": 0,
       "coverage": 45,
       "version": "0.3.8"
-    },
-    {
-      "workspace": "f30133d0-dcef-4758-9e49-ebe653bdb052",
-      "timestamp": "2026-10-06T19:15:57Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 1,
-      "current_pinned": 1,
-      "resolved_pinned": 0,
-      "coverage": 39,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "92394271-bada-4d8a-b4ba-83114166c9ce",
-      "timestamp": "2026-10-06T20:38:00Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 47,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "d4f6eff2-6fe3-4f4c-adeb-00bb56bd8d98",
-      "timestamp": "2026-10-07T08:55:56Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 37,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "af707fb0-c49e-4547-be7a-aa5e3aa40337",
-      "timestamp": "2026-10-07T12:43:44Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 13,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "5290d6a0-c9dd-4c42-b209-d39dc04098f6",
-      "timestamp": "2026-10-09T16:03:05Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 54,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "168e49eb-11f6-4a93-bed6-317184e0ee1b",
-      "timestamp": "2026-10-09T16:24:12Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 48,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "2ccaffe2-9551-4725-ad69-5e471a237e74",
-      "timestamp": "2026-10-09T16:43:04Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 52,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "72a01254-ff0e-446e-9bb8-7dcb9105ddbf",
-      "timestamp": "2026-09-07T14:46:25Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 62,
-      "version": "0.3.6"
     },
     {
       "workspace": "d64231b8-695f-4439-9fa1-0c7051c07e5e",
@@ -3142,19 +2101,63 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "33fadf62-89f1-4372-b5d4-f3af0d941158",
-      "timestamp": "2026-10-05T14:17:18Z",
+      "workspace": "ffb7d962-0015-4c99-b22c-b1770d15684a",
+      "timestamp": "2026-09-22T19:43:14Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 33,
+      "coverage": 0,
       "version": "0.3.8"
     },
     {
-      "workspace": "ce83a67f-2167-4cc5-8e69-a5de16f14838",
-      "timestamp": "2026-10-06T08:06:23Z",
+      "workspace": "71fa7865-528d-4622-8774-9e19c5995368",
+      "timestamp": "2026-09-22T20:04:11Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "40e7e3db-dfeb-4bf1-9fe6-027272df7079",
+      "timestamp": "2026-09-22T20:25:26Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "1b69ee99-9e55-411c-a289-a04f4f067615",
+      "timestamp": "2026-09-22T20:46:57Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "46422190-2855-469a-9360-d0558a2ec3ff",
+      "timestamp": "2026-09-22T20:56:27Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "4ed1980b-7f9c-40e0-be54-a290eee1ce9e",
+      "timestamp": "2026-09-24T09:24:57Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
@@ -3164,212 +2167,47 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "dcca0b94-cd65-49e7-b360-dc0514369cbf",
-      "timestamp": "2026-10-06T10:32:37Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 9,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "0b1ba20c-0330-4fcb-9498-c37569a927e6",
-      "timestamp": "2026-10-06T12:12:50Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 26,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "097c4b7c-68ae-4d62-ab01-19b7bfb7cb48",
-      "timestamp": "2026-09-25T07:31:59Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 37,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "491eed41-6ae5-4be1-b729-bf9b6186b278",
-      "timestamp": "2026-09-25T12:55:18Z",
-      "is_first": "False",
-      "run_count": 2,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 20,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "1b70dff6-49f2-47fd-af64-0111689b74c5",
-      "timestamp": "2026-10-08T09:01:59Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 21,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "61683cdd-9822-4a91-a1c6-69334d50b025",
-      "timestamp": "2026-10-10T15:54:55Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 20,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "97ec75ca-daa3-44ed-ac4f-c73e279d7af3",
-      "timestamp": "2026-10-19T08:31:10Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 33,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "92ef2241-cc69-4f62-9410-697741a4678e",
-      "timestamp": "2026-10-19T10:16:14Z",
-      "is_first": "False",
-      "run_count": 3,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 0,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "a57e7d37-a4b3-4034-a781-08a6456aef3d",
-      "timestamp": "2026-10-19T10:19:22Z",
+      "workspace": "0c1fa17b-d774-4d4c-96f9-343c7292a43d",
+      "timestamp": "2026-09-23T08:26:21Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 2,
       "current_pinned": 2,
-      "resolved_pinned": 0,
-      "coverage": 60,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "869dfc43-acab-4a49-b84d-3a1ba257b7c0",
-      "timestamp": "2026-10-19T12:07:43Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 11,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "dd4400d7-ac82-4b46-b7ad-e6c81ab6d9ec",
-      "timestamp": "2026-10-19T14:28:04Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 16,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "e482b195-0a85-41d6-9a4b-727a43706d5a",
-      "timestamp": "2026-10-19T16:56:20Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 36,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "d23ff2ec-f6f4-49c3-8044-c6b1cb24fd96",
-      "timestamp": "2026-10-19T12:01:12Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 33,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "67512223-4e45-4377-8444-d0f333b144fe",
-      "timestamp": "2026-10-19T11:58:26Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 19,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "8034a044-d3f0-4082-8e85-91a047ff512c",
-      "timestamp": "2026-10-07T15:32:25Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 2,
-      "current_pinned": 2,
-      "resolved_pinned": 0,
-      "coverage": 59,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "88f95699-b587-4800-9d41-a65151eeddd4",
-      "timestamp": "2026-10-08T11:04:19Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 50,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "dad5f60f-211d-497f-b5e5-e6cedc09fa3b",
-      "timestamp": "2026-09-28T14:16:27Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 33,
-      "version": "0.3.8"
-    },
-    {
-      "workspace": "64ea02a6-bd78-4091-a128-9df5718e0fd9",
-      "timestamp": "2026-09-28T14:44:07Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
       "resolved_pinned": 0,
       "coverage": 48,
       "version": "0.3.8"
     },
     {
-      "workspace": "45f05f24-eddd-4a18-96e8-44645e6bb521",
-      "timestamp": "2026-09-28T17:19:03Z",
+      "workspace": "f0d4d192-46b0-4a2a-bf9d-e46c74da1af9",
+      "timestamp": "2026-09-23T13:14:54Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 25,
+      "coverage": 45,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "f6de6b59-c325-400a-9934-5ec7153eab2a",
+      "timestamp": "2026-09-23T14:28:55Z",
+      "is_first": "False",
+      "run_count": 4,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 45,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "cfe4fb2c-40ef-46c3-9761-3dd50b74d6f5",
+      "timestamp": "2026-09-23T16:52:04Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 24,
       "version": "0.3.8"
     },
     {
@@ -3392,6 +2230,17 @@
       "current_pinned": 0,
       "resolved_pinned": 0,
       "coverage": 31,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "92ef2241-cc69-4f62-9410-697741a4678e",
+      "timestamp": "2026-10-19T10:16:14Z",
+      "is_first": "False",
+      "run_count": 3,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 0,
       "version": "0.3.8"
     },
     {
@@ -3439,15 +2288,15 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "1751cb16-aafa-493b-9cc6-29f4b55b6daf",
-      "timestamp": "2026-09-04T18:34:58Z",
+      "workspace": "b7c88d6f-3240-4d6b-b1ba-a0c12fa58fd7",
+      "timestamp": "2026-10-19T12:51:13Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 46,
-      "version": "0.3.6"
+      "coverage": 35,
+      "version": "0.3.8"
     },
     {
       "workspace": "dc7c63f2-a849-4ef2-a5b9-0dcba226eb1d",
@@ -3879,6 +2728,17 @@
       "version": "0.3.8"
     },
     {
+      "workspace": "fb501267-b977-4808-93b6-3f51c6024760",
+      "timestamp": "2026-10-15T10:51:36Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 19,
+      "version": "0.3.8"
+    },
+    {
       "workspace": "282d54b2-3737-4f4e-b384-878e996e0714",
       "timestamp": "2026-10-15T10:57:25Z",
       "is_first": "False",
@@ -4066,36 +2926,69 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "d2a25cc1-3553-4375-90df-1953384a1378",
-      "timestamp": "2026-09-04T18:31:50Z",
+      "workspace": "6d13751f-aa03-4767-886b-0b7279795073",
+      "timestamp": "2026-09-28T08:22:24Z",
       "is_first": "True",
       "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
+      "first_pinned": 12,
+      "current_pinned": 12,
       "resolved_pinned": 0,
-      "coverage": 36,
-      "version": "0.3.6"
-    },
-    {
-      "workspace": "efaca650-d188-4b4b-81a2-9371c80053a5",
-      "timestamp": "2026-09-18T19:28:35Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": 0,
-      "coverage": 24,
+      "coverage": 43,
       "version": "0.3.8"
     },
     {
-      "workspace": "9372a95f-5512-4b60-b7ab-5471f3c77bde",
-      "timestamp": "2026-09-14T15:19:46Z",
+      "workspace": "ce83a67f-2167-4cc5-8e69-a5de16f14838",
+      "timestamp": "2026-10-06T08:06:23Z",
       "is_first": "True",
       "run_count": 1,
       "first_pinned": 0,
       "current_pinned": 0,
       "resolved_pinned": 0,
-      "coverage": 21,
+      "coverage": 43,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "dad5f60f-211d-497f-b5e5-e6cedc09fa3b",
+      "timestamp": "2026-09-28T14:16:27Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 33,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "64ea02a6-bd78-4091-a128-9df5718e0fd9",
+      "timestamp": "2026-09-28T14:44:07Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 48,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "a57e7d37-a4b3-4034-a781-08a6456aef3d",
+      "timestamp": "2026-10-19T10:19:22Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 2,
+      "current_pinned": 2,
+      "resolved_pinned": 0,
+      "coverage": 60,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "45f05f24-eddd-4a18-96e8-44645e6bb521",
+      "timestamp": "2026-09-28T17:19:03Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 25,
       "version": "0.3.8"
     },
     {
@@ -4242,6 +3135,17 @@
       "version": "0.3.8"
     },
     {
+      "workspace": "d5cdf33c-d87f-45e0-be0c-facfa4ed0bdf",
+      "timestamp": "2026-09-30T04:37:18Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 35,
+      "version": "0.3.8"
+    },
+    {
       "workspace": "d161308e-ab8a-47cb-8e5a-bcdcdeb00974",
       "timestamp": "2026-09-16T19:35:47Z",
       "is_first": "True",
@@ -4374,6 +3278,28 @@
       "version": "0.3.8"
     },
     {
+      "workspace": "10bcbf38-e726-4ef2-9ec2-38b18b05ed48",
+      "timestamp": "2026-09-21T13:34:40Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 47,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "b6751df7-358d-4cdb-ae21-a6d0a7b5a4ab",
+      "timestamp": "2026-10-19T12:59:36Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 50,
+      "version": "0.3.8"
+    },
+    {
       "workspace": "02499c7e-cd32-4a88-932f-df4cf6a5cfbf",
       "timestamp": "2026-09-17T12:35:50Z",
       "is_first": "False",
@@ -4393,6 +3319,1051 @@
       "current_pinned": 0,
       "resolved_pinned": 0,
       "coverage": 14,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "578ef72a-8e4a-4e3a-afb1-cb908904b03e",
+      "timestamp": "2026-10-19T12:59:42Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 18,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "97ac3813-71e2-4faf-acff-36d7b8dd7100",
+      "timestamp": "2026-09-08T15:12:34Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 44,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "ed05c93e-0dd8-4f46-8eac-4a9bdb5b8001",
+      "timestamp": "2026-09-25T19:52:50Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 26,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "95a8c66a-f1ca-469d-9d8c-725b2f0f0ba7",
+      "timestamp": "2026-10-19T12:59:44Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 92,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "ac3175fc-2386-483f-a33e-98e177f74479",
+      "timestamp": "2026-10-19T12:59:48Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 50,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "89c92af2-9c9a-4797-81fc-69d598e08f4e",
+      "timestamp": "2026-09-21T09:36:49Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 33,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "66f667b6-bfee-4596-a5dc-7bb1151606dd",
+      "timestamp": "2026-09-21T13:22:05Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 38,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "a8a1d7df-fb8a-4ab3-a8b6-594d84a385b3",
+      "timestamp": "2026-09-21T13:42:16Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 21,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "9621f6f3-82f9-45f9-93cc-8f8d6d040e91",
+      "timestamp": "2026-09-21T13:55:55Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 52,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "f878e1c6-9b14-4aac-bb51-179fe33918db",
+      "timestamp": "2026-09-21T15:05:15Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 0,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "3187f4d4-d02c-4079-ae81-f40fadd41e3a",
+      "timestamp": "2026-10-14T15:37:49Z",
+      "is_first": "False",
+      "run_count": 8,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 25,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "4e5f3107-bec7-4172-9c65-94c0344e4d8d",
+      "timestamp": "2026-09-21T16:17:46Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 18,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "eeffb66f-5285-4407-916a-08f8adda988a",
+      "timestamp": "2026-09-22T13:50:44Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 29,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "11bb8eda-8407-4bd7-ad6e-9565b03f5172",
+      "timestamp": "2026-09-21T18:43:31Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 50,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "e90795d9-54bd-449f-aeb9-4305e38f95ca",
+      "timestamp": "2026-10-02T12:18:58Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 50,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "0daeb94a-005e-409a-8af8-050233e94e44",
+      "timestamp": "2026-09-12T15:23:49Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 49,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "33fadf62-89f1-4372-b5d4-f3af0d941158",
+      "timestamp": "2026-10-05T14:17:18Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 33,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "dcca0b94-cd65-49e7-b360-dc0514369cbf",
+      "timestamp": "2026-10-06T10:32:37Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 9,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "0b1ba20c-0330-4fcb-9498-c37569a927e6",
+      "timestamp": "2026-10-06T12:12:50Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 26,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "addd17eb-82cb-49e9-86c3-6161e6cc682f",
+      "timestamp": "2026-10-05T06:01:41Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 48,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "875fdc3f-b2f3-4156-b12b-440088049ff6",
+      "timestamp": "2026-10-19T13:05:41Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 30,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "5e7c9c95-5d2d-4593-99da-395f6a5b6b11",
+      "timestamp": "2026-09-09T06:25:35Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 43,
+      "version": "0.3.7"
+    },
+    {
+      "workspace": "d2a25cc1-3553-4375-90df-1953384a1378",
+      "timestamp": "2026-09-04T18:31:50Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 36,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "07cbbea4-c828-4ad9-96b9-006494f7245b",
+      "timestamp": "2026-09-24T01:11:46Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 27,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "d2b6d5d6-5071-421d-9cfe-884b5ed9739d",
+      "timestamp": "2026-09-24T10:21:50Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 43,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "1cfa126c-6ca0-4535-818f-6f7dc7877014",
+      "timestamp": "2026-09-24T12:10:55Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 6,
+      "current_pinned": 6,
+      "resolved_pinned": 0,
+      "coverage": 15,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "f7a20769-825a-486e-bf9f-2b76a8e81b6e",
+      "timestamp": "2026-09-24T13:43:16Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 15,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "7ccc5b28-6d94-48e7-9f51-32534d43a284",
+      "timestamp": "2026-09-24T13:46:05Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 17,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "b79fd702-8203-47c4-8064-0a0a424aa1f9",
+      "timestamp": "2026-09-24T14:26:10Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 70,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "8b2bf5f7-8159-403f-9fab-4ccdda449467",
+      "timestamp": "2026-09-24T14:36:07Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 70,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "e4345e7d-9619-4b6d-8dce-0269f4a57bac",
+      "timestamp": "2026-09-24T15:45:17Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 18,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "9372a95f-5512-4b60-b7ab-5471f3c77bde",
+      "timestamp": "2026-09-14T15:19:46Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 21,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "c8b1f1e9-14f7-44fe-a64d-97f54c4c616d",
+      "timestamp": "2026-10-01T06:59:12Z",
+      "is_first": "False",
+      "run_count": 3,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 10,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "097c4b7c-68ae-4d62-ab01-19b7bfb7cb48",
+      "timestamp": "2026-09-25T07:31:59Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 37,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "165c6fae-13fa-4716-b4e0-046301c89c2f",
+      "timestamp": "2026-10-23T09:41:32Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 0,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "6b0b5459-7827-4199-be1f-c7f2d9ab9b71",
+      "timestamp": "2026-10-23T16:45:35Z",
+      "is_first": "False",
+      "run_count": 2,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 32,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "a09c94da-ddcf-4cf7-ba24-8c11cfb4d67b",
+      "timestamp": "2026-09-09T08:56:35Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 20,
+      "version": "0.3.7"
+    },
+    {
+      "workspace": "be46bbda-383c-43b7-b6c7-d0116e53f515",
+      "timestamp": "2026-09-09T10:29:59Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 28,
+      "version": "0.3.7"
+    },
+    {
+      "workspace": "aae52270-cd49-46da-bb44-bb1e99510149",
+      "timestamp": "2026-09-09T13:17:13Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 0,
+      "version": "0.3.7"
+    },
+    {
+      "workspace": "bc901c0a-5bcf-4f65-a614-98f09b5f88cb",
+      "timestamp": "2026-09-10T09:40:00Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 29,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "51cdc401-f920-48c6-a74c-cf4aaacf6a67",
+      "timestamp": "2026-09-17T14:34:28Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 0,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "3b221c99-8443-4e05-9913-14326179e95e",
+      "timestamp": "2026-09-17T15:58:19Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 16,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "7973d2c1-b766-4879-854c-2d031ae4a53d",
+      "timestamp": "2026-09-17T16:11:29Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 11,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "371e5565-1ba9-47f1-98fd-030ff7dce642",
+      "timestamp": "2026-09-17T16:11:33Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 17,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "8eec9272-a884-41dd-991f-d5a07c78bcf6",
+      "timestamp": "2026-09-17T16:32:11Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 14,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "f978efe8-abd3-4c20-a167-5d5945672e5a",
+      "timestamp": "2026-09-17T19:47:40Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 31,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "fc3ba33d-757a-49fe-9867-b2ca1220f627",
+      "timestamp": "2026-09-18T12:22:43Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 31,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "a38804f1-becb-4707-ac00-aa9a589075fd",
+      "timestamp": "2026-09-18T12:31:04Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 30,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "fc7dbcc4-a8c2-4689-9034-e8e5c7da3cbb",
+      "timestamp": "2026-10-22T06:51:33Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 52,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "3f24b42a-2ed7-4ab0-a125-fb23ff3c6a71",
+      "timestamp": "2026-10-22T08:50:28Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 36,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "577095ec-208a-41d6-ae8d-e96eb7784ef8",
+      "timestamp": "2026-10-22T15:22:07Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 50,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "1751cb16-aafa-493b-9cc6-29f4b55b6daf",
+      "timestamp": "2026-09-04T18:34:58Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 46,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "641108f6-082b-4322-b7d8-45d24f0d750a",
+      "timestamp": "2026-10-20T01:45:05Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 32,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "0ca8b891-446e-400c-a35b-c538bea8d517",
+      "timestamp": "2026-09-15T13:22:15Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 46,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "1379fb17-d24e-4c18-97d8-24b9b2ca24df",
+      "timestamp": "2026-09-15T20:03:11Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 42,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "f74d2aa5-c026-40a0-ae8e-5773c6cbf421",
+      "timestamp": "2026-09-15T20:48:23Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 42,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "96750c25-5721-49db-b55a-4b51504b6d20",
+      "timestamp": "2026-09-15T23:37:56Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 30,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "7e496b41-224e-4b7c-a681-47d99c17f473",
+      "timestamp": "2026-09-16T04:58:20Z",
+      "is_first": "False",
+      "run_count": 2,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 0,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "625c4ad9-5d69-4b93-9578-45e0667ec6e4",
+      "timestamp": "2026-09-16T07:23:04Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 0,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "8a84d2a5-6f33-40a5-be3d-e138ae49ffa8",
+      "timestamp": "2026-09-16T07:29:21Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 46,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "d890dc12-dde2-4a9e-a3e7-e2cf351ed1f4",
+      "timestamp": "2026-10-12T16:02:52Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 29,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "c41b9c0e-ab1e-4c83-9e1a-3f93e300bd10",
+      "timestamp": "2026-09-16T08:40:48Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 53,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "c1bc2721-a19f-41da-9219-a8ee3590cc4d",
+      "timestamp": "2026-09-16T09:06:50Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 36,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "dc3906ff-acff-4de3-9f0d-421686d74d97",
+      "timestamp": "2026-09-16T10:17:38Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 23,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "61683cdd-9822-4a91-a1c6-69334d50b025",
+      "timestamp": "2026-10-10T15:54:55Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 20,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "97ec75ca-daa3-44ed-ac4f-c73e279d7af3",
+      "timestamp": "2026-10-19T08:31:10Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 33,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "869dfc43-acab-4a49-b84d-3a1ba257b7c0",
+      "timestamp": "2026-10-19T12:07:43Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 11,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "dd4400d7-ac82-4b46-b7ad-e6c81ab6d9ec",
+      "timestamp": "2026-10-19T14:28:04Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 16,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "e482b195-0a85-41d6-9a4b-727a43706d5a",
+      "timestamp": "2026-10-19T16:56:20Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 36,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "0c598d0e-8479-46a0-b20c-1bd99ce3a323",
+      "timestamp": "2026-10-13T06:49:56Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 40,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "93895c0c-eecc-40e2-a868-c141b27658a3",
+      "timestamp": "2026-10-14T06:14:52Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 1,
+      "current_pinned": 1,
+      "resolved_pinned": 0,
+      "coverage": 28,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "a38b84c9-12b6-45d1-8db7-80594415c2d5",
+      "timestamp": "2026-10-13T14:58:11Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 13,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "938674b8-6589-4f93-a710-62cd960c72ae",
+      "timestamp": "2026-10-13T16:17:29Z",
+      "is_first": "False",
+      "run_count": 3,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 20,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "cca0129e-173c-4074-b60e-982c57e85381",
+      "timestamp": "2026-10-13T16:29:08Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 12,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "b058a43c-1021-46e8-9f5e-8ebb8cddf2d2",
+      "timestamp": "2026-10-13T17:27:54Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 43,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "653fcb7d-00e9-477e-a8da-81f18a519132",
+      "timestamp": "2026-10-14T12:50:57Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 34,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "1bb8f150-81c7-401e-9e14-6135f1423097",
+      "timestamp": "2026-10-14T15:34:49Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 28,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "cded0d73-368e-4c17-b362-94df3ea8a80e",
+      "timestamp": "2026-10-14T15:42:48Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 50,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "298c96b4-8a43-479d-b8f4-9dc44019e3b6",
+      "timestamp": "2026-10-14T18:13:21Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 73,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "bfecb464-9d07-43a1-b2de-f95a84cdf0ab",
+      "timestamp": "2026-10-14T18:25:36Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 48,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "aaa0ffab-1150-40f6-8cc7-0542ea9454f4",
+      "timestamp": "2026-10-21T09:32:26Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 47,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "8f6258b1-1a9d-4e1f-af30-3f99630ec334",
+      "timestamp": "2026-10-01T06:34:10Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 10,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "825c98aa-82f4-4322-a224-19a9bafd18ba",
+      "timestamp": "2026-10-01T07:07:43Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 24,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "2c03e1a7-eedf-4b11-8481-a30ea277c216",
+      "timestamp": "2026-10-01T08:08:06Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 38,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "da5f82f9-48c2-4ee6-8e0b-9e28f2958754",
+      "timestamp": "2026-10-01T12:06:59Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 21,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "777689cb-8e52-4fd3-837f-3db980b16d6e",
+      "timestamp": "2026-10-01T16:58:29Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 46,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "33be09e5-e022-4311-9749-e784a1d14875",
+      "timestamp": "2026-09-02T20:19:33Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 60,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "v036-smoke-ws",
+      "timestamp": "2026-08-31T20:28:35Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 1,
+      "current_pinned": 1,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "v036-bugbashed-ws",
+      "timestamp": "2026-08-31T20:32:54Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 1,
+      "current_pinned": 1,
+      "resolved_pinned": 0,
+      "coverage": 100,
+      "version": "0.3.6"
+    },
+    {
+      "workspace": "491eed41-6ae5-4be1-b729-bf9b6186b278",
+      "timestamp": "2026-09-25T12:55:18Z",
+      "is_first": "False",
+      "run_count": 2,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 20,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "eec5b19d-b5b3-4dc4-9d7d-140806d15fa4",
+      "timestamp": "2026-09-30T09:13:46Z",
+      "is_first": "False",
+      "run_count": 2,
+      "first_pinned": 9,
+      "current_pinned": 9,
+      "resolved_pinned": 0,
+      "coverage": 54,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "ff0480e5-6cb3-4108-a1f9-2ab9efd584b2",
+      "timestamp": "2026-09-30T11:24:30Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 46,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "e5c90303-53cb-40cd-94bd-cf4c233282e9",
+      "timestamp": "2026-09-30T16:23:23Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 5,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "94a1fbf9-1bcd-4112-96ea-ee7a5469c2e7",
+      "timestamp": "2026-09-30T16:30:40Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 61,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "420e6e99-2907-41a7-b858-db0fbc8ba65e",
+      "timestamp": "2026-09-30T16:42:40Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 50,
       "version": "0.3.8"
     },
     {
@@ -4594,14 +4565,124 @@
       "version": "0.3.8"
     },
     {
-      "workspace": "ac8ab4f7-7fe4-4ad4-863c-bf1568235ad0",
-      "timestamp": "2026-09-17T11:38:38Z",
+      "workspace": "3c786512-9a8b-4936-88e7-f2e418d01b41",
+      "timestamp": "2026-09-22T14:09:02Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 47,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "9a547595-537b-49be-a67a-6befa7ff67af",
+      "timestamp": "2026-09-22T14:38:08Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 46,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "1382c728-00f2-4946-a4b0-e880da4784bb",
+      "timestamp": "2026-09-22T14:54:51Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 21,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "ab516e73-ed8c-4f5c-ae6c-d427ee43f0f7",
+      "timestamp": "2026-09-22T15:07:38Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 44,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "c05b27fc-6df6-421d-ab61-08e9adad59e1",
+      "timestamp": "2026-09-22T15:46:01Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 46,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "2c049a78-3ce4-46e5-8dd3-9f89bcd10a11",
+      "timestamp": "2026-10-06T15:05:35Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 0,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "14d1e9fd-deb6-4746-80cc-8d069afc3d9f",
+      "timestamp": "2026-10-06T17:40:23Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 17,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "ab2279cc-aaba-41d1-a55b-84125dee7f75",
+      "timestamp": "2026-10-06T17:53:56Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 49,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "6eeac6cd-14d5-4855-b54c-e4f2b080e84c",
+      "timestamp": "2026-10-06T18:00:49Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 45,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "92394271-bada-4d8a-b4ba-83114166c9ce",
+      "timestamp": "2026-10-06T20:38:00Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": 0,
+      "coverage": 47,
+      "version": "0.3.8"
+    },
+    {
+      "workspace": "8915e433-306a-4faf-8711-a5b6b01cd4a8",
+      "timestamp": "2026-09-30T06:44:11Z",
       "is_first": "False",
-      "run_count": 2,
+      "run_count": 3,
       "first_pinned": 0,
       "current_pinned": 1,
       "resolved_pinned": -1,
-      "coverage": 44,
+      "coverage": 34,
       "version": "0.3.8"
     },
     {
@@ -4616,26 +4697,15 @@
       "version": "0.3.6"
     },
     {
-      "workspace": "8915e433-306a-4faf-8711-a5b6b01cd4a8",
-      "timestamp": "2026-09-30T06:44:11Z",
+      "workspace": "ac8ab4f7-7fe4-4ad4-863c-bf1568235ad0",
+      "timestamp": "2026-09-17T11:38:38Z",
       "is_first": "False",
-      "run_count": 3,
+      "run_count": 2,
       "first_pinned": 0,
       "current_pinned": 1,
       "resolved_pinned": -1,
-      "coverage": 34,
+      "coverage": 44,
       "version": "0.3.8"
-    },
-    {
-      "workspace": "smoke-test-ws-guid-11111111",
-      "timestamp": "2026-08-18T20:07:36Z",
-      "is_first": "True",
-      "run_count": 1,
-      "first_pinned": 0,
-      "current_pinned": 0,
-      "resolved_pinned": null,
-      "coverage": null,
-      "version": "0.2.1"
     },
     {
       "workspace": "smoke-test-persistent-ws-22222",
@@ -4658,24 +4728,35 @@
       "resolved_pinned": null,
       "coverage": null,
       "version": "0.3.3"
+    },
+    {
+      "workspace": "smoke-test-ws-guid-11111111",
+      "timestamp": "2026-08-18T20:07:36Z",
+      "is_first": "True",
+      "run_count": 1,
+      "first_pinned": 0,
+      "current_pinned": 0,
+      "resolved_pinned": null,
+      "coverage": null,
+      "version": "0.2.1"
     }
   ],
   "skip_reasons": [
     {
       "reason": "type_not_inspected",
-      "count": 44113
+      "count": 44297
     },
     {
       "reason": "no_migrating_connectors",
-      "count": 13470
+      "count": 13498
     },
     {
       "reason": "no_external_connectors",
-      "count": 5841
+      "count": 5868
     },
     {
       "reason": "definition_parsed_but_no_expressions",
-      "count": 3206
+      "count": 3227
     },
     {
       "reason": "permission_denied",
@@ -4687,7 +4768,7 @@
     },
     {
       "reason": "definition_unavailable",
-      "count": 84
+      "count": 88
     },
     {
       "reason": "deleted_during_scan",
@@ -4696,12 +4777,12 @@
   ],
   "state_backends": [
     {
-      "backend": "lakehouse",
-      "scans": 1559
-    },
-    {
       "backend": "",
       "scans": 11
+    },
+    {
+      "backend": "lakehouse",
+      "scans": 1588
     },
     {
       "backend": "home",
@@ -4711,69 +4792,66 @@
   "first_vs_return": [
     {
       "is_first_run": "True",
-      "scans": 1404
+      "scans": 1423
     },
     {
       "is_first_run": "False",
-      "scans": 174
+      "scans": 184
     }
   ],
   "github": {
-    "run_id": "b7eeefe5095648e2b063b478e19b3406",
-    "source": "github_traffic_daily",
-    "clones_14d": "654",
-    "unique_cloners_14d": "239",
-    "clones_day_0_date": "2026-10-05T00:00:00.0000000Z",
-    "clones_day_0_count": "35",
-    "clones_day_0_unique": "14",
-    "clones_day_1_date": "2026-10-06T00:00:00.0000000Z",
-    "clones_day_1_count": "56",
-    "clones_day_1_unique": "22",
-    "clones_day_2_date": "2026-10-07T00:00:00.0000000Z",
-    "clones_day_2_count": "17",
-    "clones_day_2_unique": "10",
-    "clones_day_3_date": "2026-10-08T00:00:00.0000000Z",
+    "run_id": "47beaa5034864ca182aedffecaebec49",
+    "clones_14d": "680",
+    "unique_cloners_14d": "261",
+    "clones_day_0_date": "2026-10-09T00:00:00.0000000Z",
+    "clones_day_0_count": "31",
+    "clones_day_0_unique": "16",
+    "clones_day_1_date": "2026-10-10T00:00:00.0000000Z",
+    "clones_day_1_count": "18",
+    "clones_day_1_unique": "11",
+    "clones_day_2_date": "2026-10-11T00:00:00.0000000Z",
+    "clones_day_2_count": "25",
+    "clones_day_2_unique": "15",
+    "clones_day_3_date": "2026-10-12T00:00:00.0000000Z",
     "clones_day_3_count": "19",
     "clones_day_3_unique": "10",
-    "clones_day_4_date": "2026-10-09T00:00:00.0000000Z",
-    "clones_day_4_count": "31",
-    "clones_day_4_unique": "16",
-    "clones_day_5_date": "2026-10-10T00:00:00.0000000Z",
-    "clones_day_5_count": "18",
-    "clones_day_5_unique": "11",
-    "clones_day_6_date": "2026-10-11T00:00:00.0000000Z",
-    "clones_day_6_count": "25",
-    "clones_day_6_unique": "15",
-    "clones_day_7_date": "2026-10-12T00:00:00.0000000Z",
-    "clones_day_7_count": "19",
-    "clones_day_7_unique": "10",
-    "clones_day_8_date": "2026-10-13T00:00:00.0000000Z",
-    "clones_day_8_count": "55",
-    "clones_day_8_unique": "27",
-    "clones_day_9_date": "2026-10-14T00:00:00.0000000Z",
-    "clones_day_9_count": "87",
-    "clones_day_9_unique": "29",
-    "clones_day_10_date": "2026-10-15T00:00:00.0000000Z",
-    "clones_day_10_count": "193",
-    "clones_day_10_unique": "79",
-    "clones_day_11_date": "2026-10-16T00:00:00.0000000Z",
-    "clones_day_11_count": "81",
-    "clones_day_11_unique": "37",
-    "clones_day_12_date": "2026-10-17T00:00:00.0000000Z",
-    "clones_day_12_count": "10",
-    "clones_day_12_unique": "6",
-    "clones_day_13_date": "2026-10-18T00:00:00.0000000Z",
-    "clones_day_13_count": "8",
-    "clones_day_13_unique": "6",
+    "clones_day_4_date": "2026-10-13T00:00:00.0000000Z",
+    "clones_day_4_count": "55",
+    "clones_day_4_unique": "27",
+    "clones_day_5_date": "2026-10-14T00:00:00.0000000Z",
+    "clones_day_5_count": "87",
+    "clones_day_5_unique": "29",
+    "clones_day_6_date": "2026-10-15T00:00:00.0000000Z",
+    "clones_day_6_count": "193",
+    "clones_day_6_unique": "79",
+    "clones_day_7_date": "2026-10-16T00:00:00.0000000Z",
+    "clones_day_7_count": "81",
+    "clones_day_7_unique": "37",
+    "clones_day_8_date": "2026-10-17T00:00:00.0000000Z",
+    "clones_day_8_count": "10",
+    "clones_day_8_unique": "6",
+    "clones_day_9_date": "2026-10-18T00:00:00.0000000Z",
+    "clones_day_9_count": "8",
+    "clones_day_9_unique": "6",
+    "clones_day_10_date": "2026-10-19T00:00:00.0000000Z",
+    "clones_day_10_count": "73",
+    "clones_day_10_unique": "35",
+    "clones_day_11_date": "2026-10-20T00:00:00.0000000Z",
+    "clones_day_11_count": "16",
+    "clones_day_11_unique": "9",
+    "clones_day_12_date": "2026-10-21T00:00:00.0000000Z",
+    "clones_day_12_count": "49",
+    "clones_day_12_unique": "25",
+    "clones_day_13_date": "2026-10-22T00:00:00.0000000Z",
+    "clones_day_13_count": "15",
+    "clones_day_13_unique": "10",
     "clones_days": "14",
-    "views_14d": "62",
-    "unique_viewers_14d": "14",
+    "views_14d": "38",
+    "unique_viewers_14d": "12",
     "top_referrer_1": "pbides.powerbi.com",
     "top_referrer_1_count": "4",
-    "top_referrer_2": "brc-powerpoint.officeapps.live.com",
-    "top_referrer_2_count": "2",
-    "top_referrer_3": "github.com",
-    "top_referrer_3_count": "2",
+    "top_referrer_2": "github.com",
+    "top_referrer_2_count": "1",
     "release_downloads_v0_3_1": "0",
     "release_downloads_v0_3_0": "0",
     "release_downloads_v0_2_4": "0",
@@ -4786,7 +4864,8 @@
     "forks": "1",
     "open_issues": "7",
     "subscribers": "0",
-    "repo": "MichaelaIsaacs/pq-adbc-advisor"
+    "repo": "MichaelaIsaacs/pq-adbc-advisor",
+    "source": "github_traffic_daily"
   },
   "releases": [
     {
