@@ -42,6 +42,11 @@ class ImpactedArtifact:
     hits: list[ConnectorCall]           # ALL connector calls (migrating + not)
     has_gateway: bool | None = None
     workspace_name: str = ""
+    # v0.3.2: sovereign cloud + My Workspace awareness.
+    # None means "read env / commercial default" so existing callers
+    # keep the same behavior.
+    is_personal: bool = False
+    cloud: str | None = None
 
     @property
     def worst_risk(self) -> str:
@@ -60,6 +65,14 @@ class ImpactedArtifact:
     @property
     def has_migrating_connector(self) -> bool:
         return any(h.is_migrating for h in self.hits)
+
+    def fabric_portal_url(self) -> str:
+        """Return a Fabric portal deep-link for this artifact (v0.3.1; sovereign-aware v0.3.2)."""
+        from .constants import fabric_portal_url
+        return fabric_portal_url(
+            self.workspace_id, self.item_id, self.item_type,
+            cloud=self.cloud, is_personal=self.is_personal,
+        )
 
 
 @dataclass
@@ -390,6 +403,44 @@ _STYLE = """
   .pqa-preview-banner b { color: #242424; font-weight: 600; }
   .pqa-preview-banner a { color: #117865; font-weight: 600; text-decoration: none; }
   .pqa-preview-banner a:hover { text-decoration: underline; }
+
+  /* v0.3.1: filter toolbar + inline "Open in Fabric" link */
+  .pqa-filter-toolbar {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 10px 12px; margin-bottom: 12px;
+    background: #f8f6f4; border: 1px solid #edebe9; border-radius: 6px;
+  }
+  .pqa-filter-toolbar .pqa-filter-label {
+    font-size: 12px; color: #605e5c; margin-right: 4px; font-weight: 600;
+  }
+  .pqa-filter-btn {
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    padding: 5px 12px; border-radius: 14px; cursor: pointer;
+    background: white; color: #323130; border: 1px solid #d2d0ce;
+    transition: background 60ms ease-in, border-color 60ms ease-in;
+  }
+  .pqa-filter-btn:hover { background: #f3f2f1; }
+  .pqa-filter-btn.active {
+    background: linear-gradient(135deg, #00b7c3 0%, #7b83eb 100%);
+    color: white; border-color: transparent;
+  }
+  .pqa-filter-count {
+    font-weight: 400; margin-left: 4px; opacity: 0.75;
+  }
+  .pqa-connection.pqa-filtered-out { display: none; }
+  .pqa-connector-group.pqa-empty { display: none; }
+  .pqa-artifact-link {
+    color: #117865; text-decoration: none;
+    border-bottom: 1px dashed #117865;
+  }
+  .pqa-artifact-link:hover {
+    color: #0b5749; border-bottom-style: solid;
+    text-decoration: none;
+  }
+  .pqa-artifact-link:focus-visible {
+    outline: 2px solid #0b5749; outline-offset: 2px;
+    border-radius: 2px;
+  }
 </style>
 """
 
@@ -404,6 +455,67 @@ _PREVIEW_BANNER = (
     'Transition to ADBC docs</a>.'
     '</div>'
 )
+
+
+# v0.3.1: Self-contained JS for the "filter to needs review" toolbar.
+# Uses only vanilla DOM APIs so it works identically in Jupyter, VS Code
+# notebooks, and Fabric notebooks. Attached with a runOnce guard so that
+# re-executing the cell (which reinjects <script>) does not double-bind
+# listeners.  Empty connector groups collapse via a CSS class rather
+# than removing DOM so the filter is reversible.
+_FILTER_SCRIPT = """
+<script>
+(function() {
+  if (window.__pqaFilterInit) { return; }
+  window.__pqaFilterInit = true;
+
+  function bindFilters(root) {
+    var buttons = root.querySelectorAll('.pqa-filter-btn');
+    if (!buttons.length) return;
+    buttons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var filter = btn.getAttribute('data-filter');
+        buttons.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        var rows = root.querySelectorAll('.pqa-connection');
+        rows.forEach(function(row) {
+          var risk = row.getAttribute('data-risk-filter') || 'other';
+          if (filter === 'all' || filter === risk) {
+            row.classList.remove('pqa-filtered-out');
+          } else {
+            row.classList.add('pqa-filtered-out');
+          }
+        });
+        // Hide connector groups with no visible rows.
+        var groups = root.querySelectorAll('.pqa-connector-group');
+        groups.forEach(function(g) {
+          var visible = g.querySelectorAll('.pqa-connection:not(.pqa-filtered-out)').length;
+          if (visible === 0) { g.classList.add('pqa-empty'); }
+          else { g.classList.remove('pqa-empty'); }
+        });
+      });
+    });
+  }
+
+  // Bind on every .pqa-root we can see now, and on future ones injected
+  // by re-running the cell.
+  document.querySelectorAll('.pqa-root').forEach(bindFilters);
+  var mo = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(n) {
+        if (n.nodeType === 1) {
+          if (n.classList && n.classList.contains('pqa-root')) bindFilters(n);
+          if (n.querySelectorAll) {
+            n.querySelectorAll('.pqa-root').forEach(bindFilters);
+          }
+        }
+      });
+    });
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+"""
 
 
 def _icon(kind: str) -> str:
@@ -423,6 +535,10 @@ def _render_connection_row(
     meta_chips: list[str],       # small chips like "Implementation=1.0", "custom DSN", "gateway"
     artifact_line: str,          # "In: Sales Model (SemanticModel)"
     diagnosis: Diagnosis | None,
+    # v0.3.1: clickable deep-link + risk filter attribute
+    portal_url: str | None = None,
+    risk_filter: str = "other",   # one of: needs_review, will_fail, ready, other
+    gateway_chip: str | None = None,  # v0.3.1: explicit tri-state gateway pill
 ) -> str:
     title_html = (
         f"<code>{_escape(connection_title)}</code>"
@@ -432,6 +548,17 @@ def _render_connection_row(
     chips_html = " ".join(
         f'<span class="pqa-summary-chip warn">{_escape(c)}</span>' for c in meta_chips
     )
+    # Gateway pill uses its own tone so users can eyeball tri-state at a glance.
+    if gateway_chip:
+        tone = {
+            "via gateway": "ok",
+            "no gateway": "fail",
+            "gateway: unknown": "warn",
+        }.get(gateway_chip, "warn")
+        chips_html += (
+            f' <span class="pqa-summary-chip {tone}" title="Gateway detection state">'
+            f'{_escape(gateway_chip)}</span>'
+        )
     fix_html = ""
     if diagnosis is not None:
         fix_class = "fail" if status_kind == "fail" else ("warn" if status_kind == "warn" else "ok")
@@ -455,8 +582,15 @@ def _render_connection_row(
         f'{_escape(status_label)}</span>'
     )
 
+    # v0.3.1 (revised per David): the clickable target is the artifact
+    # NAME itself in the "In: <Name>" line — clicking jumps to that
+    # specific item in the Fabric portal so the user can open and edit it
+    # for migration. The link is composed by the call site into
+    # `artifact_line` so we can hyperlink just the name (not the type
+    # tag). No separate "Open" pill — David flagged that as ambiguous.
     return (
-        f'<div class="pqa-connection">'
+        f'<div class="pqa-connection" data-risk-filter="{risk_filter}"'
+        f' data-portal-url="{_escape(portal_url) if portal_url else ""}">'
         f'  <div class="pqa-connection-icon {status_kind}">{_icon(status_kind)}</div>'
         f'  <div class="pqa-connection-body">'
         f'    <div class="pqa-connection-title">{title_html}</div>'
@@ -674,6 +808,76 @@ class ImpactReport:
             )
         return pd.DataFrame(rows)
 
+    # ---- Filtering (v0.3.1) ------------------------------------------- #
+
+    def filtered(self, risk: str | list[str]) -> "ImpactReport":
+        """Return a new ImpactReport containing only the requested risks.
+
+        Args:
+            risk: One risk level, or a list of them. Valid values are
+                ``"high"``, ``"medium"``, ``"low"``, ``"unknown"``, ``"na"``
+                — or the friendlier aliases ``"will_fail"``,
+                ``"needs_review"``, ``"ready"``, ``"other"``.
+
+        The returned report is a shallow copy: connector calls are
+        preserved but each artifact is kept only when at least one of
+        its hits matches the requested risk given the artifact's
+        gateway state. Gateway lookups and Fabric Connections are
+        preserved.
+        """
+        alias = {
+            "will_fail":    RISK_HIGH,
+            "needs_review": {RISK_MEDIUM, RISK_UNKNOWN},
+            "ready":        RISK_LOW,
+            "other":        RISK_NA,
+        }
+        if isinstance(risk, str):
+            wants = alias.get(risk, {risk})
+        else:
+            wants = set()
+            for r in risk:
+                a = alias.get(r, r)
+                if isinstance(a, set):
+                    wants.update(a)
+                else:
+                    wants.add(a)
+        if not isinstance(wants, set):
+            wants = {wants}
+
+        new = ImpactReport(
+            workspace_id=self.workspace_id, scope=self.scope,
+            tool_version=self.tool_version,
+        )
+        new.fabric_connections = self.fabric_connections
+        new.fabric_connections_error = self.fabric_connections_error
+        new.observed_types = dict(self.observed_types)
+        new.used_sempy_path = self.used_sempy_path
+        new.sempy_hits = self.sempy_hits
+        new.show_non_migrating = self.show_non_migrating
+        new.pipeline_calls = self.pipeline_calls
+        for a in self.artifacts:
+            matched_hits = [h for h in a.hits if h.risk(a.has_gateway) in wants]
+            if matched_hits:
+                new.add(ImpactedArtifact(
+                    workspace_id=a.workspace_id, item_id=a.item_id,
+                    item_name=a.item_name, item_type=a.item_type,
+                    hits=matched_hits, has_gateway=a.has_gateway,
+                    workspace_name=a.workspace_name,
+                ))
+        return new
+
+    def needs_review(self) -> "ImpactReport":
+        """Only rows tagged 'Needs review' (medium risk + unknown gateway)."""
+        return self.filtered("needs_review")
+
+    def will_fail(self) -> "ImpactReport":
+        """Only rows tagged 'Will fail' (ODBC-pinned without a gateway)."""
+        return self.filtered("will_fail")
+
+    def ready_only(self) -> "ImpactReport":
+        """Only rows tagged 'Ready' (tenant switch will handle them)."""
+        return self.filtered("ready")
+
     def summary(self) -> dict[str, Any]:
         c = self._counts()
         cov = self.coverage()
@@ -707,7 +911,10 @@ class ImpactReport:
         cov = self.coverage()
         counts_risk = c["counts_by_risk"]
         n_high = counts_risk[RISK_HIGH]
-        n_medium = counts_risk[RISK_MEDIUM]
+        # "Needs review" bucket = MEDIUM + UNKNOWN so KPI card and filter
+        # button agree (both need eyes on them: gateway-backed OR gateway-
+        # detection-failed). Keeps David's "gateway audit" ask coherent.
+        n_medium = counts_risk[RISK_MEDIUM] + counts_risk[RISK_UNKNOWN]
 
         # Rendering flag (David Coe review, 2026-08-20):
         # Large workspaces easily have 100+ non-migrating connector calls
@@ -729,7 +936,7 @@ class ImpactReport:
             ),
             _kpi_card(
                 "Needs review", str(n_medium),
-                "gateway-backed or DSN-shaped" if n_medium else "clean",
+                "gateway, DSN, or gateway unknown" if n_medium else "clean",
                 tone="medium" if n_medium else "low",
             ),
             _kpi_card(
@@ -814,15 +1021,49 @@ class ImpactReport:
                     chips.append(f'Implementation="{call.implementation}"')
                 if call.custom_dsn:
                     chips.append("custom DSN")
-                if artifact.has_gateway is True:
-                    chips.append("via gateway")
-                elif artifact.has_gateway is False and call.is_migrating:
-                    chips.append("no gateway")
 
+                # v0.3.1: explicit tri-state gateway pill. The old code
+                # only chipped "via gateway" / "no gateway" and stayed
+                # SILENT when has_gateway was None — David called that
+                # ambiguous.  A dedicated pill spells out the state.
+                gateway_chip = None
+                if call.is_migrating:
+                    if artifact.has_gateway is True:
+                        gateway_chip = "via gateway"
+                    elif artifact.has_gateway is False:
+                        gateway_chip = "no gateway"
+                    else:
+                        gateway_chip = "gateway: unknown"
+
+                # v0.3.1 (revised): the artifact NAME is the clickable
+                # target. Clicking "HighRiskModel" opens THAT semantic
+                # model in the Fabric portal so the user can edit it for
+                # migration. Only the name is a link; the type tag is
+                # not, to keep the click target unambiguous. If we can't
+                # build a portal URL (missing workspace_id/item_id) we
+                # render the name as plain text — no broken href.
+                _portal = artifact.fabric_portal_url()
+                if _portal:
+                    _name_html = (
+                        f'<a href="{_escape(_portal)}" target="_blank" '
+                        f'rel="noopener noreferrer" class="pqa-artifact-link" '
+                        f'title="Open in Fabric to edit for migration">'
+                        f'<b>{_escape(artifact.item_name)}</b></a>'
+                    )
+                else:
+                    _name_html = f'<b>{_escape(artifact.item_name)}</b>'
                 artifact_line = (
-                    f'In: <b>{_escape(artifact.item_name)}</b> '
+                    f'In: {_name_html} '
                     f'<span style="color:#a19f9d;font-size:11px;">({_escape(artifact.item_type)})</span>'
                 )
+
+                # v0.3.1: risk filter attribute drives the toolbar buttons.
+                risk_filter = {
+                    "fail": "will_fail",
+                    "warn": "needs_review",
+                    "ok":   "ready",
+                    "none": "other",
+                }.get(status_kind, "other")
 
                 conn_htmls.append(_render_connection_row(
                     status_kind=status_kind,
@@ -832,6 +1073,10 @@ class ImpactReport:
                     meta_chips=chips,
                     artifact_line=artifact_line,
                     diagnosis=diag,
+                    # v0.3.1
+                    portal_url=artifact.fabric_portal_url(),
+                    risk_filter=risk_filter,
+                    gateway_chip=gateway_chip,
                 ))
                 rows_rendered_total += 1
 
@@ -965,6 +1210,42 @@ class ImpactReport:
                 f"sempy fast path · {self.sempy_hits} hits</span>"
             )
 
+        # v0.3.1: filter toolbar + inline JS.  David asked for the ability
+        # to see only the rows that need review.  Rendering runs in the
+        # notebook, so a self-contained <script> is the right vehicle —
+        # no external assets, no state on the Python side, works in both
+        # Jupyter and Fabric notebooks.
+        need_review_count = will_fail_count = ready_count = other_count = 0
+        for a in self.artifacts:
+            for h in a.hits:
+                if not show_non_migrating and not h.is_migrating and not h.custom_dsn:
+                    continue
+                r_ = h.risk(a.has_gateway)
+                if r_ == RISK_HIGH:
+                    will_fail_count += 1
+                elif r_ == RISK_MEDIUM or r_ == RISK_UNKNOWN:
+                    need_review_count += 1
+                elif r_ == RISK_LOW:
+                    ready_count += 1
+                else:
+                    other_count += 1
+        total_rendered = need_review_count + will_fail_count + ready_count + other_count
+
+        filter_toolbar = (
+            '<div class="pqa-filter-toolbar">'
+            '<span class="pqa-filter-label">Show:</span>'
+            f'<button type="button" class="pqa-filter-btn active" data-filter="all">'
+            f'All<span class="pqa-filter-count">({total_rendered})</span></button>'
+            f'<button type="button" class="pqa-filter-btn" data-filter="will_fail">'
+            f'Will fail<span class="pqa-filter-count">({will_fail_count})</span></button>'
+            f'<button type="button" class="pqa-filter-btn" data-filter="needs_review">'
+            f'Needs review<span class="pqa-filter-count">({need_review_count})</span></button>'
+            f'<button type="button" class="pqa-filter-btn" data-filter="ready">'
+            f'Ready<span class="pqa-filter-count">({ready_count})</span></button>'
+            '</div>'
+            + _FILTER_SCRIPT
+        )
+
         return (
             _STYLE +
             '<div class="pqa-root">'
@@ -977,11 +1258,12 @@ class ImpactReport:
             f'<div class="pqa-kpis">{"".join(kpis)}</div>'
             '<div class="pqa-section-title">Connections by connector</div>'
             '<div class="pqa-section-desc">'
-            "Each connector groups its individual connections. "
+            "Click the <b>artifact name</b> (e.g., <i>In: HighRiskModel</i>) to open it in the Fabric portal and edit for migration. "
             "<b>&#10003; Ready</b> = tenant switch will handle it. "
-            "<b>! Needs review</b> = custom DSN or gateway-backed ODBC pin. "
+            "<b>! Needs review</b> = custom DSN, gateway-backed ODBC pin, or gateway unknown. "
             "<b>&#10007; Will fail</b> = ODBC-pinned without a gateway; breaks at cutover."
             "</div>"
+            f'{filter_toolbar}'
             f'{"".join(groups_html)}'
             f'{hidden_note}'
             f"{conn_html}"
@@ -1186,8 +1468,23 @@ class ValidationReport:
                 # apply to a SQL Server side-source in the same model.
                 show_diagnosis = call.is_migrating
 
+                # v0.3.1 (revised): hyperlink the artifact name in the
+                # validation section too, so David can jump straight to
+                # the model that failed refresh and fix it. If we can't
+                # build a portal URL (missing workspace_id/item_id) we
+                # render the name as plain text — no broken href.
+                _portal = r.artifact.fabric_portal_url()
+                if _portal:
+                    _name_html = (
+                        f'<a href="{_escape(_portal)}" target="_blank" '
+                        f'rel="noopener noreferrer" class="pqa-artifact-link" '
+                        f'title="Open in Fabric to edit for migration">'
+                        f'<b>{_escape(r.artifact.item_name)}</b></a>'
+                    )
+                else:
+                    _name_html = f'<b>{_escape(r.artifact.item_name)}</b>'
                 artifact_line = (
-                    f'In: <b>{_escape(r.artifact.item_name)}</b> '
+                    f'In: {_name_html} '
                     f'<span style="color:#a19f9d;font-size:11px;">({_escape(r.artifact.item_type)})</span> &middot; '
                     f'refresh <b>{_escape(r.status)}</b>'
                 )
