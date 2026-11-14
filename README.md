@@ -99,10 +99,10 @@ activity. To back off further, drop `max_parallel` (e.g.
 
 **Coverage disclosure.** The report shows a "Coverage" KPI card and a
 "Scope of this scan" footer listing which item types were inspected
-(SemanticModel, Dataset, Dataflow) vs. not inspected (Data Pipeline,
-Notebook, Report, etc.). A clean scan on a workspace that only
-contains Reports is honestly reported as low coverage, not a green
-light.
+(SemanticModel, Dataset, Dataflow, Data Pipeline) vs. not inspected
+(Notebook, Report, Paginated Report, etc.). A clean scan on a workspace
+that only contains Reports is honestly reported as low coverage, not a
+green light.
 
 The **validation** phase triggers a real refresh on every impacted
 semantic model, so it does consume Fabric capacity — one refresh per
@@ -117,7 +117,7 @@ model, run in parallel up to `max_parallel`.
 | **SemanticModel / Dataset** | ✓ | `sempy.fabric` fast path when available; REST `getDefinition` fallback |
 | **Dataflow (Gen 2)** | ✓ | REST `getDefinition`, parses `mashup.pq` |
 | **Dataflow (Gen 1)** | ✓ (best effort) | REST `getDefinition`, walks embedded strings |
-| **Data Pipeline** | ✓ (v0.3.0) | REST `getDefinition`, walks activities (incl. ForEach/If/Until/Switch), resolves `externalReferences.connection` against Fabric Connections |
+| **Data Pipeline / Copy** | ✓ (coverage only by default) | REST `getDefinition`, walks activities (incl. ForEach/If/Until/Switch), resolves `externalReferences.connection` against Fabric Connections. Copy does not expose the Power Query `Implementation` flag that this scanner classifies, so these rows are hidden from the default migration-impact report unless `include_non_migrating=True`. |
 | Notebook, Report, Paginated Report, KQL Queryset, Lakehouse, Warehouse | Not yet | Surfaced in the "Scope of this scan" footer |
 
 The report's **Coverage** KPI reflects the ratio of inspected to total
@@ -158,9 +158,21 @@ Required setup (documented Sept 2026, Natasha security review MED-2):
 | **API permissions** | Power BI Service → `Tenant.Read.All` (application). Grant admin consent. |
 | **Admin consent** | Tenant admin must grant; SP delegated flow is not supported for admin APIs. |
 | **Fabric tenant setting** | Enable *"Allow service principals to use read-only Power BI admin APIs"* AND add the SP to the security group that setting references. Setting lives in Power BI Admin Portal → Tenant settings → Admin API settings. |
+| **Scanner metadata setting** | Enable the detailed metadata / expression responses for Scanner APIs. Without this, `scan_tenant()` may enumerate workspaces but receive no M expressions, which renders as an empty impact report with skipped-item diagnostics. |
 | **Fabric role** | Not required at the workspace level — the Scanner API is admin-only. |
 | **Data returned** | The Scanner API returns workspace + item metadata + dataset expressions + datasource connection details. `scan_tenant()` sets `getArtifactUsers=False` so user lists are excluded (v0.3.8 minimization). |
 | **Scope check** | Because the SP uses MSAL `.default` scope, the effective permissions are whatever the app registration has been granted admin consent for. Use a dedicated app registration to keep this minimal. |
+
+`scan_tenant()` uses a **hybrid scan** by default. It starts with the
+Power BI Scanner API, then supplements Dataflow and Data Pipeline / Copy
+activity coverage from Fabric item definitions because those APIs expose
+different columns and payload shapes. Copy/Data Pipeline is treated as
+coverage-only by default because Copy does not expose the Power Query
+`Implementation` flag that this scanner classifies; pass
+`include_non_migrating=True` if you want those inspected pipeline references
+shown in the report. Pass
+`include_fabric_item_fallback=False` only if you need a Scanner-API-only
+run for troubleshooting or to minimize REST fan-out.
 
 If the SP can't be granted `Tenant.Read.All`, fall back to running
 `scan_workspace()` per workspace with a delegated token — no admin

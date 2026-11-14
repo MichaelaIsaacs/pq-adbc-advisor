@@ -158,10 +158,10 @@ we let the caller override.
 
 `ImpactReport.coverage()` computes a score from `observed_types` —
 the set of item types seen during discovery. Item types we do not yet
-parse (Data Pipeline, Notebook, MLModel, etc.) count against the
-coverage score so a clean report on a workspace of only Reports is
-correctly flagged as "we didn't inspect anything" rather than
-silently returning a green light.
+parse (Notebook, Report, MLModel, etc.) count against the coverage
+score so a clean report on a workspace of only Reports is correctly
+flagged as "we didn't inspect anything" rather than silently returning
+a green light.
 
 The scan's HTML render surfaces both the coverage percentage as a KPI
 and the exact list of inspected vs not-inspected types in the "Scope
@@ -169,7 +169,6 @@ of this scan" section at the bottom.
 
 ## Not in scope (yet)
 
-* Data Pipeline connector call parsing (tracked as a follow-up).
 * KQL Queryset scanning.
 * Fabric Warehouse T-SQL parsing.
 * Any write path beyond `trigger_refresh` in `validation.py`.

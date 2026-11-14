@@ -12,6 +12,8 @@ For local runs, callers may pass an ``access_token`` explicitly.
 
 from __future__ import annotations
 
+import json
+import os
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -147,6 +149,72 @@ def current_workspace_id() -> str:
 
     Only works inside a Fabric notebook.
     """
+    def _context_to_dict(ctx: Any) -> dict[str, Any]:
+        if callable(ctx):
+            ctx = ctx()
+        if isinstance(ctx, dict):
+            return ctx
+        for attr in ("toJson", "to_json"):
+            fn = getattr(ctx, attr, None)
+            if callable(fn):
+                try:
+                    data = fn()
+                    if isinstance(data, str):
+                        return json.loads(data)
+                    if isinstance(data, dict):
+                        return data
+                except Exception:
+                    pass
+        return {}
+
+    def _first_workspace_id(ctx: dict[str, Any]) -> str | None:
+        # Prefer the notebook/session workspace. Do not use
+        # defaultLakehouseWorkspaceId here: customers can attach a notebook
+        # to a lakehouse in a different workspace, and scan_workspace() should
+        # default to where the notebook is running/imported.
+        for key in (
+            "currentWorkspaceId",
+            "workspaceId",
+            "workspace_id",
+            "trident.workspace.id",
+            "fabric.workspace.id",
+        ):
+            value = ctx.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return None
+
+    # Fabric notebook runtime context is the most reliable source because it
+    # reflects the currently opened notebook workspace, not the default
+    # lakehouse attachment.
+    try:
+        import notebookutils  # type: ignore
+        runtime = getattr(notebookutils, "runtime", None)
+        if runtime is not None:
+            for attr in ("context", "getContext"):
+                if hasattr(runtime, attr):
+                    found = _first_workspace_id(_context_to_dict(getattr(runtime, attr)))
+                    if found:
+                        return found
+    except Exception:
+        pass
+
+    # Older Synapse-compatible runtimes expose mssparkutils instead.
+    try:
+        import mssparkutils  # type: ignore
+        notebook = getattr(mssparkutils, "notebook", None)
+        if notebook is not None and hasattr(notebook, "getContext"):
+            found = _first_workspace_id(_context_to_dict(notebook.getContext))
+            if found:
+                return found
+    except Exception:
+        pass
+
+    for env_key in ("FABRIC_WORKSPACE_ID", "TRIDENT_WORKSPACE_ID", "WORKSPACE_ID"):
+        value = os.environ.get(env_key)
+        if value:
+            return value
+
     try:
         from pyspark.sql import SparkSession  # type: ignore
         spark = SparkSession.builder.getOrCreate()

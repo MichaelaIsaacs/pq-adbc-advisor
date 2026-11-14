@@ -25,10 +25,22 @@ from typing import Iterable
 
 
 def _b64_decode(payload: str) -> str:
+    if not isinstance(payload, (str, bytes, bytearray)):
+        return ""
     try:
         return base64.b64decode(payload).decode("utf-8", errors="replace")
     except Exception:
         return ""
+
+
+def _as_dict(value) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value) -> list:
+    if isinstance(value, list):
+        return value
+    return []
 
 
 def extract_m_expressions(definition: dict, item_type: str) -> list[dict]:
@@ -39,7 +51,7 @@ def extract_m_expressions(definition: dict, item_type: str) -> list[dict]:
     """
     if not definition or "definition" not in definition:
         return []
-    parts = definition["definition"].get("parts", [])
+    parts = _as_list(_as_dict(definition["definition"]).get("parts", []))
     if item_type in ("SemanticModel", "Dataset"):
         return _from_semantic_model(parts)
     if item_type in ("Dataflow",):
@@ -51,7 +63,9 @@ def _from_semantic_model(parts: list[dict]) -> list[dict]:
     """Semantic Model definitions ship as TMDL (.tmdl) or TMSL (model.bim)."""
     out: list[dict] = []
     for part in parts:
-        path = part.get("path", "")
+        if not isinstance(part, dict):
+            continue
+        path = str(part.get("path") or "")
         text = _b64_decode(part.get("payload", ""))
         if not text:
             continue
@@ -69,19 +83,22 @@ def _scan_tmsl(text: str) -> list[dict]:
     except json.JSONDecodeError:
         return []
     out: list[dict] = []
-    model = doc.get("model", doc)
+    model = _as_dict(doc.get("model", doc))
 
-    for table in model.get("tables", []):
+    for table in _as_list(model.get("tables", [])):
+        table = _as_dict(table)
         tname = table.get("name", "?")
-        for partition in table.get("partitions", []):
-            src = partition.get("source", {})
+        for partition in _as_list(table.get("partitions", [])):
+            partition = _as_dict(partition)
+            src = _as_dict(partition.get("source", {}))
             # source.type == 'm' is a Power Query M expression.
             # 'calculated' means DAX calculated table - not scanned.
             if src.get("type") == "m" and "expression" in src:
                 expr = _join_expression(src["expression"])
                 out.append({"name": f"{tname}.{partition.get('name','')}", "expression": expr})
 
-    for expr in model.get("expressions", []):
+    for expr in _as_list(model.get("expressions", [])):
+        expr = _as_dict(expr)
         out.append({
             "name": f"shared:{expr.get('name','?')}",
             "expression": _join_expression(expr.get("expression", "")),
@@ -133,7 +150,9 @@ def _from_dataflow(parts: list[dict]) -> list[dict]:
     """
     out: list[dict] = []
     for part in parts:
-        path = part.get("path", "").lower()
+        if not isinstance(part, dict):
+            continue
+        path = str(part.get("path") or "").lower()
         text = _b64_decode(part.get("payload", ""))
         if not text:
             continue
@@ -180,6 +199,8 @@ def _generic_scan(parts: list[dict]) -> list[dict]:
 def _join_expression(expr) -> str:
     if isinstance(expr, list):
         return "\n".join(str(x) for x in expr)
+    if isinstance(expr, dict):
+        return json.dumps(expr, sort_keys=True)
     return str(expr)
 
 
@@ -219,13 +240,19 @@ def _walk_for_key(obj, key: str) -> list[str]:
 
 def expressions_from_scanner_dataset(dataset: dict) -> Iterable[dict]:
     """Scanner API embeds M expressions when datasetExpressions=True was set."""
-    for table in dataset.get("tables", []):
-        for source in table.get("source", []):
+    dataset = _as_dict(dataset)
+    for table in _as_list(dataset.get("tables", [])):
+        table = _as_dict(table)
+        for source in _as_list(table.get("source", [])):
+            source = _as_dict(source)
             expr = source.get("expression")
-            if expr:
+            if isinstance(expr, (str, list)) and expr:
                 yield {"name": table.get("name", "?"), "expression": expr}
-    for expr in dataset.get("expressions", []):
-        yield {"name": f"shared:{expr.get('name','?')}", "expression": expr.get("expression", "")}
+    for expr in _as_list(dataset.get("expressions", [])):
+        expr = _as_dict(expr)
+        value = expr.get("expression", "")
+        if isinstance(value, (str, list)) and value:
+            yield {"name": f"shared:{expr.get('name','?')}", "expression": value}
 
 
 def expressions_from_scanner_dataflow(dataflow: dict) -> Iterable[dict]:
@@ -237,15 +264,19 @@ def expressions_from_scanner_dataflow(dataflow: dict) -> Iterable[dict]:
       * ``entities[*].partitions[*].expression``
       * top-level ``document`` field with a decodable mashup
     """
-    for q in dataflow.get("queries", []) or []:
+    dataflow = _as_dict(dataflow)
+    for q in _as_list(dataflow.get("queries", []) or []):
+        q = _as_dict(q)
         for key in ("mCode", "expression", "m", "M"):
-            v = q.get(key) if isinstance(q, dict) else None
+            v = q.get(key)
             if isinstance(v, str) and v:
                 yield {"name": q.get("name", "?"), "expression": v}
                 break
-    for e in dataflow.get("entities", []) or []:
-        for p in (e.get("partitions", []) if isinstance(e, dict) else []) or []:
-            expr = p.get("expression") if isinstance(p, dict) else None
+    for e in _as_list(dataflow.get("entities", []) or []):
+        e = _as_dict(e)
+        for p in _as_list(e.get("partitions", [])):
+            p = _as_dict(p)
+            expr = p.get("expression")
             if isinstance(expr, str) and expr:
                 yield {"name": e.get("name", "?"), "expression": expr}
     doc = dataflow.get("document")

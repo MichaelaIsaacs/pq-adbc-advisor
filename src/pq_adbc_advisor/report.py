@@ -676,6 +676,11 @@ class ImpactReport:
     show_non_migrating: bool = False
     # New in v0.3.0: DataPipeline coverage.
     pipeline_calls: int = 0
+    # Tenant scan visibility: admin scanner can return many workspaces but
+    # zero supported artifacts/expressions if tenant admin API settings are
+    # not enabled. Surface the workspace count so the report is not blank.
+    scanned_workspace_count: int = 0
+    used_fabric_item_fallback: bool = False
 
     def add(self, artifact: ImpactedArtifact) -> None:
         self.artifacts.append(artifact)
@@ -902,6 +907,7 @@ class ImpactReport:
             "coverage_score_pct": cov["score_pct"],
             "coverage_types_not_inspected": cov["not_inspected_types"],
             "used_sempy_path": self.used_sempy_path,
+            "used_fabric_item_fallback": self.used_fabric_item_fallback,
             "sempy_hits": self.sempy_hits,
             "tool_version": self.tool_version,
         }
@@ -1104,7 +1110,17 @@ class ImpactReport:
                 break
 
         if not groups_html:
-            groups_html = ['<div class="pqa-section-desc">No external connector calls found in this workspace.</div>']
+            if self.scope == "tenant" and self.scanned_workspace_count:
+                groups_html = [
+                    '<div class="pqa-section-desc">'
+                    f'Tenant scan completed across {self.scanned_workspace_count} workspace(s), '
+                    'but no migrating connector calls were found in the Scanner API payload. '
+                    'Check the skipped-items section below; common causes are no affected connectors, '
+                    'Scanner API expression metadata not enabled, or item types outside current coverage.'
+                    '</div>'
+                ]
+            else:
+                groups_html = ['<div class="pqa-section-desc">No external connector calls found in this workspace.</div>']
 
         # Fabric connections table (top 10) - kept as a compact table
         conn_html = ""
@@ -1158,11 +1174,16 @@ class ImpactReport:
         by_reason = self.skipped_by_reason()
         if by_reason:
             reason_labels = {
-                "type_not_inspected": "Type not yet inspected (Data Pipeline, Notebook, Report, etc.)",
+                "type_not_inspected": "Type not yet inspected (Notebook, Report, Paginated Report, etc.)",
                 "definition_unavailable": "Definition unavailable (permissions, or API blocked)",
                 "definition_parsed_but_no_expressions": "Item has no M expressions",
+                "malformed_expression_payload": "Definition exposed malformed expression payloads",
                 "no_external_connectors": "M expressions contain no external connectors",
                 "no_migrating_connectors": "No migrating connectors (filtered by default)",
+                "fabric_items_unavailable": "Fabric item definitions unavailable for this workspace",
+                "scanner_returned_no_supported_artifacts": (
+                    "Scanner API returned workspaces but no supported artifact metadata"
+                ),
             }
             rows = []
             for reason, n in sorted(by_reason.items(), key=lambda kv: -kv[1]):
@@ -1192,8 +1213,8 @@ class ImpactReport:
                 not_inspected_note = (
                     "<b>Not inspected:</b> "
                     f"{_list_types(cov['not_inspected_types'])}. "
-                    "Data Pipeline coverage is tracked in a follow-up; "
-                    "connector calls inside pipelines are not yet parsed."
+                    "These item types are listed so a clean result is not mistaken "
+                    "for full workspace coverage."
                 )
             other_note = ""
             if cov["other_types"]:
